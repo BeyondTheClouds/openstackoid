@@ -1,0 +1,140 @@
+#+TITLE: OpenStackoïd PoC Implementation
+
+# TODO: Introduction
+
+* Try it
+
+* Principle
+
+* Setup
+The setup is based on two runs of virtualbox-based enos deployement.
+We are going to deploy, using enos, two distinct All-in-One OpenStack
+instances. We'll then change their Haproxy configurations to make
+these two OpenStacks collaborative by interpreting the scope.
+
+First, clone the project:
+: git checkout git@github.com:BeyondTheClouds/openstackoid.git -b stable/queens
+
+** Deployment of the first instance (i.e., RegionOne)
+Setup a vanilla OpenStack with enos.
+
+#+BEGIN_SRC sh
+cd RegionOne
+enos deploy -f ./regionOne.yaml -e EnvRegionOne
+source EnvRegionOne/admin-openrc
+#+END_SRC
+
+At that point, you've got a fully operational stable/queens OpenStack
+deployed with kolla-ansible. You can do an ~openstack endpoint list~
+for instance. Then, generate HAProxy configuration files as explained
+in section [[#sec:ha-confs]].
+
+Afterwards, tell enos to reconfigure OpenStack with the new
+configuration, to take it into account.
+
+: enos os --reconfigure --tags haproxy --env EnvRegionOne
+
+Kill haproxy. Kolla/haproxy container is built without the support of
+lua and we need it to interpret the scope.
+
+: vagrant ssh
+: sudo su
+: docker stop haproxy
+
+Because of the kill of haproxy, keepalived unbinds its VIP. So, we
+have to set it manually.
+
+: ip addr add 192.168.142.244/32 dev eth2
+
+Finally, install a version of HAProxy that interpret lua and run it.
+
+: apt install haproxy -y
+: cd /etc/kolla/haproxyoid
+: haproxy -f haproxy.cfg
+
+** Deployment of the second instance (i.e., RegionTwo)
+Same as the [[*Deployment of the first instance (i.e., RegionOne)][deployment of RegionOne]], but with RegionTwo.
+
+#+BEGIN_SRC sh
+cd RegionTwo
+enos deploy -f ./regionTwo.yaml -e EnvRegionTwo
+source EnvRegionOne/admin-openrc
+# TODO: Generate haproxy configuration files...
+enos os --reconfigure --tags haproxy --env EnvRegionOne
+vagrant ssh
+sudo su
+docker stop haproxy
+# Wait few seconds, ..
+ip addr add 192.168.144.244/32 dev eth2
+apt install haproxy -y
+cd /etc/kolla/haproxyoid
+haproxy -f haproxy.cfg
+#+END_SRC
+
+** Generate HAProxy configuration files
+:PROPERTIES:
+:CUSTOM_ID: sec:ha-confs
+:END:
+First, generate the [[file:RegionOne/patches/haproxy/services.conf][services.conf]] file that lists all the endpoints of
+all your OpenStack instances. To make this file, run the following
+command on all OpenStack instances and concatenate the results.
+
+#+BEGIN_SRC sh
+openstack endpoint list \
+  -f json \
+  -c "Region" -c "Service Type" -c "Interface" -c "URL"
+#+END_SRC
+
+URLs have to be cleaned a little bit. Remove the protocol part (e.g.,
+~http://~) and placeholders for values (e.g., ~%(tenant_id)s~).
+
+Then get the generated haproxy configuration file of the first OS
+instance.
+
+#+BEGIN_SRC sh
+scp -i .vagrant/machines/enos-0/virtualbox/private_key \
+    -P 2222 \
+    root@127.0.0.1:/etc/kolla/haproxy/haproxy.cfg .
+#+END_SRC
+
+And rewrite it so that ~keystone_internal~, ~keystone_admin~,
+~glance_api~, ~nova_api~, ~placement_api~ and ~neutron_server~ call
+the scope-interpret sample fetch. For instance, with
+~keystone_internal~ of RegionOne.
+
+#+BEGIN_SRC conf
+listen keystone_internal
+  bind 192.168.142.244:5000
+  http-request del-header X-Forwarded-Proto if { ssl_fc }
+  use_backend %[lua.scope-interpret]
+
+backend RegionOne_identity_public
+  server enos-r1 192.168.142.245:5000 check inter 2000 rise 2 fall 5
+backend RegionOne_identity_internal
+  server enos-r1 192.168.142.245:5000 check inter 2000 rise 2 fall 5
+backend RegionTwo_identity_public
+  http-request set-header Host 192.168.144.244:5000
+  server enos-r2 192.168.144.244:5000 check inter 2000 rise 2 fall 5
+backend RegionTwo_identity_internal
+  http-request set-header Host 192.168.144.244:5000
+  server enos-r2 192.168.144.244:5000 check inter 2000 rise 2 fall 5
+#+END_SRC
+
+Backend name is generated based on fields "Region", "Service Type" and
+"Interface" of [[file:RegionOne/patches/haproxy/services.conf][services.conf]]. Servers of the current region link to
+the concrete backend (e.g., ~192.168.142.245:5000~). Servers of other
+regions link to HAProxy of other regions (e.g.,
+~192.168.144.244:5000~, as in "URL" of [[file:RegionOne/patches/haproxy/services.conf][services.conf]]).
+
+** Change openstack CLI to get the scope
+Install the following cli that interpret the ~--scope~:
+#+BEGIN_SRC sh
+git clone git@github.com:BeyondTheClouds/python-openstackclient.git -b openstackoid/queens
+pip install -e python-openstackclient
+#+END_SRC
+
+
+
+* Acknowledgment
+[[https://twitter.com/tcarrez/status/1061665184530481152][OpenStack Berlin Hackathon]], Team 5:
+-
