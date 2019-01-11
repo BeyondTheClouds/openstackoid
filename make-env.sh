@@ -20,12 +20,6 @@ fi
 
 source venv/bin/activate
 
-pip install ~/prog/inria-perso/enos
-
-# Fix execo-UNKNOWN (see timeline.org 2018-12-05)
-sed -i 's|execo (<2.7,>=2.6.2)|execo|' \
-    venv/lib/python2.7/site-packages/enoslib-1.12.3.dist-info/METADATA
-
 emacs &
 
 # Mount /bin in the tmpfs so that I can symlink bash into /bin
@@ -81,6 +75,7 @@ tmux send-keys 'source venv/bin/activate' 'C-m'
 tmux send-keys 'cd RegionOne' 'C-m'
 tmux send-keys 'source EnvRegionOne/admin-openrc' 'C-m'
 tmux select-window -t "$TMUX_NAME:0"
+
 # Setup RegionTwo
 tmux split-window -v "exec ${ISHELL}"
 tmux send-keys 'source venv/bin/activate' 'C-m'
