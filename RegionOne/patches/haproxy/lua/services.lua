@@ -2,11 +2,10 @@
 --
 -- This module contains the list of services (i.e., Service Type,
 -- Interface, Region and URL) of each OpenStack instances. Services
--- are indexed first by the name of the Region and then by "Service
--- Type++Interface".
+-- are indexed first by the name of the Region.
 --
 -- Provides:
--- - services.lookup_service_interface(reg, url):
+-- - services.lookup_by_reg_url(reg, url):
 --   Lookup in the list of services the actual "Service Type" and
 --   "Interface" of a specific region `reg` and URL `url`.
 
@@ -36,7 +35,7 @@ local function json_file(filename)
     return nil
 end
 
--- Indexes services per "Service Type++Interface" and "Region".
+-- Indexes services per "Region" name.
 --
 -- @param filename json file with a list of json objects containing
 -- the "Region", "Service Type", "Interface" and "URL" fields.
@@ -57,8 +56,7 @@ local function services_per_regions(filename)
 end
 
 -- List of all OpenStack services (i.e, "Service Type", "URL",
--- "Interface" and "Region") indexed first by the "Region" and then by
--- the "Service Type++Interface".
+-- "Interface" and "Region") indexed by the "RegionName".
 --
 -- Regions ADT:
 -- regions := { RegionName: Service ... , ... }
@@ -69,11 +67,38 @@ end
 --            }
 local regions = services_per_regions("services.conf")
 
--- Lookup in `service.regions` the actual "Service Type" and
--- "Interface" of a specific region `reg` and URL `url`.
+-- Lookup for a service based on a specific region `reg` 
+-- and predicate p on a service
+--
+-- @param reg the region name
+-- @param p Service -> Bool
+-- @return a Service object.
+function services.lookup(reg, p)
+  local region = regions[reg]
+
+  if region then
+    for _, service in pairs(region) do
+      if p(service) then
+        core.log(core.info,'lookup_service: '..inspect(service))
+        return service
+      end
+    end
+
+    core.log(core.err, 'Cannot find service for region '..
+               inspect(reg)..' and url '..inspect(url))
+  else
+    core.log(core.err, 'Cannot find service for region '..
+               inspect(reg)..' and url '..inspect(url))
+  end
+
+  return nil
+end
+
+-- Lookup for a service based on a specific region `reg` 
+-- and URL `url`.
 --
 -- @return a Service object.
-function services.lookup_service(reg, url)
+function services.lookup_by_reg_url(reg, url)
   local region = regions[reg]
 
   if region then
