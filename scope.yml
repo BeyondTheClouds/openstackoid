@@ -1,0 +1,79 @@
+#   ____                ______           __        _    __
+#  / __ \___  ___ ___  / __/ /____ _____/ /_____  (_)__/ /
+# / /_/ / _ \/ -_) _ \_\ \/ __/ _ `/ __/  '_/ _ \/ / _  /
+# \____/ .__/\__/_//_/___/\__/\_,_/\__/_/\_\\___/_/\_,_/
+#     /_/
+# Make your OpenStack Collaborative
+#
+# Playbook that deploys everything for scope interpretation.
+#
+
+---
+- hosts: all
+  vars:
+    os_services: [
+      g-api, g-reg, keystone, n-api-meta, n-api, n-cauth,
+      n-cond-cell1, n-cpu, n-novnc-cell1, n-sch, n-super-cond,
+      placement-api, q-agt, q-dhcp, q-l3, q-meta, q-svc
+    ]
+  vars_files:
+    - patches/haproxy/services.conf
+  tasks:
+
+  - name: Install patched OpenStack-CLI and Keystone-middleware that interprets the scope
+    pip:
+      name: "{{item}}"
+      editable: true
+    with_items:
+      - git+https://github.com/Beyondtheclouds/python-openstackclient.git@openstackoid/queens#egg=python-openstackclient
+      # - TODO: git+https://github.com/Beyondtheclouds/keystonemiddleware.git@openstackoid/rocky#egg=keystonemiddleware
+    become: true
+
+  - name: Copy HAProxy lua scripts
+    copy:
+      src: "patches/haproxy/{{ item }}"
+      dest: /etc/haproxy
+    loop:
+      - services.conf
+      - lua
+    become: true
+
+  - name: Instanciate HAProxy lua scripts
+    template:
+      src: patches/haproxy/lua/interpret_scope.lua.j2
+      dest: /etc/haproxy/lua/interpret_scope.lua
+    become: true
+
+  - name: Configure HAProxy LUA_PATH
+    copy:
+      src: patches/systemd/haproxy.service
+      dest: /lib/systemd/system/haproxy.service
+    become: true
+
+  - name: Make HAProxy configuration file
+    template:
+      src: patches/haproxy/haproxy.cfg.j2
+      dest: /etc/haproxy/haproxy.cfg
+    become: true
+
+  - name: Update devstack@* services to go through HAProxy
+    template:
+      src: "patches/systemd/devstack@{{ item }}.service.j2"
+      dest: "/etc/systemd/system/devstack@{{ item }}.service"
+    loop: "{{ os_services }}"
+    become: true
+
+  - name: Restart HAProxy
+    systemd:
+      name: haproxy
+      state: restarted
+      daemon_reload: yes
+    become: true
+
+  - name: Restart devstack@*
+    systemd:
+      name: "devstack@{{ item }}"
+      state: restarted
+      daemon_reload: yes
+    loop: "{{ os_services }}"
+    become: true

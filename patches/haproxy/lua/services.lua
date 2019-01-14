@@ -9,8 +9,8 @@
 --   Lookup in the list of services the actual "Service Type" and
 --   "Interface" of a specific region `reg` and URL `url`.
 
-local json     = require('lua.json')
-local inspect  = require('lua.inspect')
+local json     = require('json')
+local inspect  = require('inspect')
 local services = {}
 
 -- See http://lua-users.org/wiki/StringRecipes
@@ -44,7 +44,7 @@ local function services_per_regions(filename)
   local json_regions = json_file(filename)
   local regions = {}
 
-  for _, entry in ipairs(json_regions) do
+  for _, entry in ipairs(json_regions['services']) do
     if regions[entry["Region"]] == nil then
       regions[entry["Region"]] = {}
     end
@@ -65,9 +65,9 @@ end
 --              "Region": RegionName,
 --              "Interface": str
 --            }
-local regions = services_per_regions("services.conf")
+local regions = services_per_regions("/etc/haproxy/services.conf")
 
--- Lookup for a service based on a specific region `reg` 
+-- Lookup for a service based on a specific region `reg`
 -- and predicate p on a service
 --
 -- @param reg the region name
@@ -94,7 +94,7 @@ function services.lookup(reg, p)
   return nil
 end
 
--- Lookup for a service based on a specific region `reg` 
+-- Lookup for a service based on a specific region `reg`
 -- and URL `url`.
 --
 -- @return a Service object.

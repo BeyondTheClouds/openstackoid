@@ -1,0 +1,14 @@
+
+[Unit]
+Description = Devstack devstack@q-meta.service
+
+[Service]
+Environment="HTTP_PROXY=http://{{ the_conf.ip}}:8888"
+ExecReload = /bin/kill -HUP $MAINPID
+TimeoutStopSec = 300
+KillMode = process
+ExecStart = /usr/local/bin/neutron-metadata-agent --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/metadata_agent.ini
+User = stack
+
+[Install]
+WantedBy = multi-user.target

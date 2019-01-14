@@ -1,0 +1,14 @@
+
+[Unit]
+Description = Devstack devstack@n-cauth.service
+
+[Service]
+Environment="HTTP_PROXY=http://{{ the_conf.ip}}:8888"
+ExecReload = /bin/kill -HUP $MAINPID
+TimeoutStopSec = 300
+KillMode = process
+ExecStart = /usr/local/bin/nova-consoleauth --config-file /etc/nova/nova.conf
+User = stack
+
+[Install]
+WantedBy = multi-user.target

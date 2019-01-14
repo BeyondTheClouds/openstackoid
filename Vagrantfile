@@ -25,31 +25,66 @@ Vagrant.configure(2) do |config|
                               group: "vagrant"
   end
 
+  # Configuration of OpenStack instances
+  os_confs = [
+    {
+      :name => "InstanceOne",
+      :ip => "192.168.141.245",
+      :ssh => 2141
+    },
+    {
+      :name => "InstanceTwo",
+      :ip => "192.168.142.245",
+      :ssh => 2142
+    }
+  ]
+
   # Start OpenStacks
-  make_os config, "RegionOne", "192.168.141.245", primary=true
-  make_os config, "RegionTwo", "192.168.142.245"
+  os_confs.each do |os_conf|
+    make_os config, os_conf, os_confs
+  end
 end
 
 # ------------------------------------------------------------------------
 # Utils
 
+def run_ansible(vm, name, vars)
+  vm.provision name, type: :ansible_local do |ansible|
+    ansible.install_mode = "pip"
+    ansible.version = "2.6.11"
+    ansible.compatibility_mode = "2.0"
+    ansible.playbook = "#{name}.yml"
+    ansible.extra_vars = vars
+    # ansible.verbose = "-vvvv"
+  end
+end
+
 # Make a new *independant* OpenStack instance.
-def make_os(config, os_name, ip, primary = false)
-  config.vm.define os_name, primary: primary do |os|
+#
+# The creation of the OpenStack instance goes through two provisioning
+# phase:
+#
+# 1. --provision-with setup :: Deploys OS with Devstack
+# 2. --provision-with scope :: Deploys HAProxy and set the scope
+#    interpretation.
+def make_os(config, os_conf, os_confs)
+  config.vm.define os_conf[:name] do |os|
     # exit!
+    os.vm.hostname = os_conf[:name]
+    os.vm.network :private_network, ip: os_conf[:ip], auto_config: true
+    os.vm.network :forwarded_port, guest: 22, host: os_conf[:ssh], id: "ssh"
     #os.vm.network :forwarded_port, guest: 80, host: 8881
-    os.vm.hostname = os_name
-    os.vm.network :private_network, ip: ip, auto_config: true
-    os.vm.provision :ansible_local do |ansible|
-      ansible.install_mode = "pip"
-      ansible.version = "2.6.11"
-      ansible.compatibility_mode = "2.0"
-      ansible.playbook = "provision.yml"
-      # ansible.verbose = "-vvvv"
-      ansible.extra_vars = {
-        :os_name => os_name,
-        :os_ip => ip
-      }
-    end
+
+    # Setup and Install devstack
+    run_ansible(os.vm, "setup", {
+        :os_name => os_conf[:name],
+        :os_ip => os_conf[:ip]
+      })
+
+    # Interpret the scope
+    run_ansible(os.vm, "scope", {
+      :the_conf => os_conf,
+      :os_confs => os_confs
+    })
   end
 end

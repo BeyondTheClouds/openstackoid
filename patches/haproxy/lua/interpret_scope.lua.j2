@@ -6,19 +6,21 @@
 -- See,
 -- http://www.arpalert.org/src/haproxy-lua-api/1.8/index.html
 -- http://haproxy.tech-notes.net/7-3-6-fetching-http-samples-layer-7/
+-- https://www.haproxy.com/documentation/aloha/9-0/traffic-management/lb-layer7/http-rewrite/
 
-local inspect  = require('lua.inspect')
-local json     = require('lua.json')
-local services = require('lua.services')
+local inspect  = require('inspect')
+local json     = require('json')
+local services = require('services')
 
-local current_region = "RegionOne"
+local current_region = "{{ the_conf.name }}"
 
 -- Returns the scope of the request.
 local function get_scope(headers)
   -- Initialize to default scope
   local scope = {
     ["compute"]   = current_region,
-    ["identity"]  = current_region,
+    -- ["identity"]  = current_region,
+    ["identity"]  = "InstanceOne",
     ["image"]     = current_region,
     ["network"]   = current_region,
     ["placement"] = current_region
@@ -63,7 +65,7 @@ end
 -- @param token_name, the name of the X-*-Token, e.g., X-Auth-Token,
 -- or X-Subject-Token.
 local function clean_token_header(token_name, txn)
-  local x_star_header = txn.http:req_get_headers()[string.lower(token_name)] 
+  local x_star_header = txn.http:req_get_headers()[string.lower(token_name)]
 
   if x_star_header then
     -- OK, the header exists
@@ -102,7 +104,7 @@ local function interpret_scope(txn)
   end
 
   -- Add X-Identity-* for identity_server of keystone middleware
-  local function is_admin_identity(service) 
+  local function is_admin_identity(service)
     return service["Service Type"] == "identity"
       and service["Interface"] == "admin"
   end

@@ -1,0 +1,18 @@
+
+[Unit]
+Description = Devstack devstack@placement-api.service
+
+[Service]
+Environment="HTTP_PROXY=http://{{ the_conf.ip}}:8888"
+RestartForceExitStatus = 100
+NotifyAccess = all
+Restart = always
+KillMode = process
+Type = notify
+ExecReload = /bin/kill -HUP $MAINPID
+ExecStart = /usr/local/bin/uwsgi --procname-prefix placement --ini /etc/nova/placement-uwsgi.ini
+User = stack
+SyslogIdentifier = devstack@placement-api.service
+
+[Install]
+WantedBy = multi-user.target

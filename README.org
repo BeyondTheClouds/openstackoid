@@ -134,6 +134,12 @@ pip install -e python-openstackclient
 #+END_SRC
 
 
+* Misc
+** See HAProxy log
+Run HAProxy from the terminal
+: sudo vim +6 /etc/haproxy/haproxy.cfg # comment chroot and daemon line
+: sudo LUA_PATH="/etc/haproxy/lua/?.lua;" haproxy -f /etc/haproxy/haproxy.cfg
+: http_proxy="http://192.168.141.245:8888" curl http://10.0.2.15:9696/v2.0/networks
 
 * Acknowledgment
 [[https://twitter.com/tcarrez/status/1061665184530481152][OpenStack Berlin Hackathon]], Team 5:

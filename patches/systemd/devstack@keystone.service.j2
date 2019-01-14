@@ -1,0 +1,18 @@
+
+[Unit]
+Description = Devstack devstack@keystone.service
+
+[Service]
+Environment="HTTP_PROXY=http://{{ the_conf.ip}}:8888"
+RestartForceExitStatus = 100
+NotifyAccess = all
+Restart = always
+KillMode = process
+Type = notify
+ExecReload = /bin/kill -HUP $MAINPID
+ExecStart = /usr/local/bin/uwsgi --procname-prefix keystone --ini /etc/keystone/keystone-uwsgi-public.ini
+User = stack
+SyslogIdentifier = devstack@keystone.service
+
+[Install]
+WantedBy = multi-user.target

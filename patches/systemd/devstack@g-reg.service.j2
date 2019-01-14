@@ -1,0 +1,14 @@
+
+[Unit]
+Description = Devstack devstack@g-reg.service
+
+[Service]
+Environment="HTTP_PROXY=http://{{ the_conf.ip}}:8888"
+ExecReload = /bin/kill -HUP $MAINPID
+TimeoutStopSec = 300
+KillMode = process
+ExecStart = /usr/local/bin/glance-registry --config-file=/etc/glance/glance-registry.conf
+User = stack
+
+[Install]
+WantedBy = multi-user.target

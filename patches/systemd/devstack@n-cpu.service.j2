@@ -1,0 +1,15 @@
+
+[Unit]
+Description = Devstack devstack@n-cpu.service
+
+[Service]
+Environment="HTTP_PROXY=http://{{ the_conf.ip}}:8888"
+Group = libvirt
+ExecReload = /bin/kill -HUP $MAINPID
+TimeoutStopSec = 300
+KillMode = process
+ExecStart = /usr/local/bin/nova-compute --config-file /etc/nova/nova-cpu.conf
+User = stack
+
+[Install]
+WantedBy = multi-user.target
