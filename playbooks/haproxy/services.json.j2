@@ -1,0 +1,65 @@
+{ "services" :
+  [
+    {% for os_conf in os_confs -%}
+    {
+      "Service Type": "identity",
+      "Interface": "admin",
+      "URL": "{{ os_conf.ip }}:8888/identity",
+      "Region": "{{ os_conf.name }}",
+      "Frontend": "{{ os_conf.ip }}:8888",
+      "Backend": "10.0.2.15:80"
+    },
+    {
+      "Service Type": "identity",
+      "Interface": "public",
+      "URL": "{{ os_conf.ip }}:8888/identity",
+      "Region": "{{ os_conf.name }}",
+      "Frontend": "{{ os_conf.ip }}:8888",
+      "Backend": "10.0.2.15:80"
+    },
+    {
+      "Service Type": "compute",
+      "Interface": "public",
+      "URL": "{{ os_conf.ip }}:8888/compute/v2.1",
+      "Region": "{{ os_conf.name }}",
+      "Frontend": "{{ os_conf.ip }}:8888",
+      "Backend": "10.0.2.15:80"
+    },
+    {
+      "Service Type": "compute_legacy",
+      "Interface": "public",
+      "URL": "{{ os_conf.ip }}:8888/compute/v2/",
+      "Region": "{{ os_conf.name }}",
+      "Frontend": "{{ os_conf.ip }}:8888",
+      "Backend": "10.0.2.15:80"
+    },
+    {
+      "Service Type": "placement",
+      "Interface": "public",
+      "URL": "{{ os_conf.ip }}:8888/placement",
+      "Region": "{{ os_conf.name }}",
+      "Frontend": "{{ os_conf.ip }}:8888",
+      "Backend": "10.0.2.15:80"
+    },
+    {
+      "Service Type": "image",
+      "Interface": "public",
+      "URL": "{{ os_conf.ip }}:8888/image",
+      "Region": "{{ os_conf.name }}",
+      "Frontend": "{{ os_conf.ip }}:8888",
+      "Backend": "10.0.2.15:80"
+    },
+    {
+      "Service Type": "network",
+      "Interface": "public",
+      "URL": "{{ os_conf.ip }}:9696",
+      "Region": "{{ os_conf.name }}",
+      "Frontend": "{{ os_conf.ip }}:8888",
+      "Backend": "10.0.2.15:9696"
+    }{%- if not loop.last %},
+
+    {% endif -%}
+    {% endfor %}
+
+  ]
+}

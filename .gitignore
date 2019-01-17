@@ -1,0 +1,4 @@
+.vagrant
+playbooks/haproxy/services.json
+playbooks/*.retry
+

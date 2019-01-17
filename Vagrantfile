@@ -6,11 +6,16 @@
 # / /_/ / _ \/ -_) _ \_\ \/ __/ _ `/ __/  '_/ _ \/ / _  /
 # \____/ .__/\__/_//_/___/\__/\_,_/\__/_/\_\\___/_/\_,_/
 #     /_/
-# Make your OpenStack Collaborative
+# Make your OpenStacks Collaborative
 #
 # This Vagrant file deploys two *independent* OpenStack instances. And
 # then configures them so they can interpret the `--scope` for
 # collaboration between services.
+#
+# - Deploy OpenStack solely
+#   : vagrant up --provision-with devstack
+# - Configure HAProxy and the scope
+#   : vagrant provision --provision-with ha-scope
 #
 
 Vagrant.configure(2) do |config|
@@ -53,7 +58,7 @@ def run_ansible(vm, name, vars)
     ansible.install_mode = "pip"
     ansible.version = "2.6.11"
     ansible.compatibility_mode = "2.0"
-    ansible.playbook = "#{name}.yml"
+    ansible.playbook = "playbooks/#{name}.yml"
     ansible.extra_vars = vars
     # ansible.verbose = "-vvvv"
   end
@@ -64,8 +69,8 @@ end
 # The creation of the OpenStack instance goes through two provisioning
 # phase:
 #
-# 1. --provision-with setup :: Deploys OS with Devstack
-# 2. --provision-with scope :: Deploys HAProxy and set the scope
+# 1. --provision-with devstack :: Deploys OS with Devstack
+# 2. --provision-with ha-scope :: Deploys HAProxy and set the scope
 #    interpretation.
 def make_os(config, os_conf, os_confs)
   config.vm.define os_conf[:name] do |os|
@@ -76,13 +81,13 @@ def make_os(config, os_conf, os_confs)
     #os.vm.network :forwarded_port, guest: 80, host: 8881
 
     # Setup and Install devstack
-    run_ansible(os.vm, "setup", {
+    run_ansible(os.vm, "devstack", {
         :os_name => os_conf[:name],
         :os_ip => os_conf[:ip]
       })
 
     # Interpret the scope
-    run_ansible(os.vm, "scope", {
+    run_ansible(os.vm, "ha-scope", {
       :the_conf => os_conf,
       :os_confs => os_confs
     })

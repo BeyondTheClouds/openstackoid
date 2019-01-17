@@ -1,13 +1,24 @@
+--   ____                ______           __        _    __
+--  / __ \___  ___ ___  / __/ /____ _____/ /_____  (_)__/ /
+-- / /_/ / _ \/ -_) _ \_\ \/ __/ _ `/ __/  '_/ _ \/ / _  /
+-- \____/ .__/\__/_//_/___/\__/\_,_/\__/_/\_\\___/_/\_,_/
+--     /_/
+-- Make your OpenStacks Collaborative
+--
 -- Module for OpenStack services.
 --
 -- This module contains the list of services (i.e., Service Type,
--- Interface, Region and URL) of each OpenStack instances. Services
--- are indexed first by the name of the Region.
+-- Interface, Region and URL) of each OpenStack instances. And,
+-- provides function to lookup services depending on the Region name.
 --
 -- Provides:
--- - services.lookup_by_reg_url(reg, url):
---   Lookup in the list of services the actual "Service Type" and
---   "Interface" of a specific region `reg` and URL `url`.
+-- * services.lookup(reg, p):
+--   Returns the first service of region `reg` that satifies the
+--   predicate p.
+--
+-- * services.lookup_by_reg_url(reg, url):
+--   Returns the first service of region `reg` whose the
+--   service["URL"] matches `url`.
 
 local json     = require('json')
 local inspect  = require('inspect')
@@ -18,7 +29,7 @@ local function starts_with(str, start)
    return str:sub(1, #start) == start
 end
 
--- Open and decode a json file
+-- Open and decode a json file.
 --
 -- @param filename the json file
 -- @return a lua array
@@ -44,7 +55,7 @@ local function services_per_regions(filename)
   local json_regions = json_file(filename)
   local regions = {}
 
-  for _, entry in ipairs(json_regions['services']) do
+  for _, entry in ipairs(json_regions["services"]) do
     if regions[entry["Region"]] == nil then
       regions[entry["Region"]] = {}
     end
@@ -56,7 +67,7 @@ local function services_per_regions(filename)
 end
 
 -- List of all OpenStack services (i.e, "Service Type", "URL",
--- "Interface" and "Region") indexed by the "RegionName".
+-- "Interface" and "Region") indexed by the "Region".
 --
 -- Regions ADT:
 -- regions := { RegionName: Service ... , ... }
@@ -65,13 +76,13 @@ end
 --              "Region": RegionName,
 --              "Interface": str
 --            }
-local regions = services_per_regions("/etc/haproxy/services.conf")
+local regions = services_per_regions("/etc/haproxy/services.json")
 
 -- Lookup for a service based on a specific region `reg`
--- and predicate p on a service
+-- and predicate `p` on a service.
 --
 -- @param reg the region name
--- @param p Service -> Bool
+-- @param p a predicate Service -> Bool
 -- @return a Service object.
 function services.lookup(reg, p)
   local region = regions[reg]
@@ -99,24 +110,11 @@ end
 --
 -- @return a Service object.
 function services.lookup_by_reg_url(reg, url)
-  local region = regions[reg]
-
-  if region then
-    for _, service in pairs(region) do
-      if starts_with(url, service["URL"]) then
-        core.log(core.info,'lookup_service: '..inspect(service))
-        return service
-      end
-    end
-
-    core.log(core.err, 'Cannot find service for region '..
-               inspect(reg)..' and url '..inspect(url))
-  else
-    core.log(core.err, 'Cannot find service for region '..
-               inspect(reg)..' and url '..inspect(url))
+  local function starts_with_url(service)
+    return starts_with(url, service["URL"])
   end
 
-  return nil
+  return services.lookup(reg, starts_with_url)
 end
 
 return services

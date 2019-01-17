@@ -1,0 +1,120 @@
+#   ____                ______           __        _    __
+#  / __ \___  ___ ___  / __/ /____ _____/ /_____  (_)__/ /
+# / /_/ / _ \/ -_) _ \_\ \/ __/ _ `/ __/  '_/ _ \/ / _  /
+# \____/ .__/\__/_//_/___/\__/\_,_/\__/_/\_\\___/_/\_,_/
+#     /_/
+# Make your OpenStacks Collaborative
+#
+# Playbook that setups the scope interpretation.
+#
+
+---
+- hosts: all
+  vars:
+    os_services: [
+      g-api, g-reg, keystone, n-api-meta, n-api, n-cauth,
+      n-cond-cell1, n-cpu, n-novnc-cell1, n-sch, n-super-cond,
+      placement-api, q-agt, q-dhcp, q-l3, q-meta, q-svc ]
+  tasks:
+
+# ------------------------------------------------------------------------
+# -- Scaffolding
+
+  - name: Compute the list of services (services.json)
+    local_action:
+      module: template
+      src: haproxy/services.json.j2
+      dest: haproxy/services.json
+    run_once: True
+
+  - name: Read the values of services.json for later HA configuration
+    local_action:
+      module: include_vars
+      file: haproxy/services.json
+    run_once: True
+
+  - name: Install patched OS-CLI and K-middleware that interpret the scope
+    pip:
+      name: "{{item}}"
+      editable: true
+    with_items:
+      - git+https://github.com/Beyondtheclouds/python-openstackclient.git@openstackoid/queens#egg=python-openstackclient
+      # - TODO: git+https://github.com/Beyondtheclouds/keystonemiddleware.git@openstackoid/rocky#egg=keystonemiddleware
+    become: true
+
+# ------------------------------------------------------------------------
+# -- HAProxy with Scope interpretation
+
+  - name: Make HAProxy configuration file (haproxy.cfg)
+    template:
+      src: haproxy/haproxy.cfg.j2
+      dest: /etc/haproxy/haproxy.cfg
+    become: true
+
+  - name: Make a directory for Lua scripts
+    file:
+      path: /etc/haproxy/lua
+      state: directory
+    become: true
+
+  - name: Generate HA interpret_scope.lua script
+    template:
+      src: haproxy/lua/interpret_scope.lua.j2
+      dest: /etc/haproxy/lua/interpret_scope.lua
+    become: true
+
+  - name: Copy HA utils Lua scripts
+    copy:
+      src: "haproxy/{{ item }}"
+      dest: "/etc/haproxy/{{ item }}"
+    loop:
+      - services.json
+      - lua/services.lua
+      - lua/json.lua
+      - lua/inspect.lua
+    become: true
+
+  - name: Configure HA $LUA_PATH to find Lua scripts
+    ini_file:
+      path: /lib/systemd/system/haproxy.service
+      section: Service
+      option: Environment
+      value: >
+        CONFIG=/etc/haproxy/haproxy.cfg
+        LUA_PATH=/etc/haproxy/lua/?.lua;
+    become: true
+
+  - name: Restart HA
+    systemd:
+      name: haproxy
+      state: restarted
+      daemon_reload: yes
+    become: true
+
+# ------------------------------------------------------------------------
+# -- [HACK] Wriggle out of no HA support in Desvtack
+
+  - name: "[HACK] Update devstack@* services to go through HAProxy"
+    ini_file:
+      path: "/etc/systemd/system/devstack@{{ item }}.service"
+      section: Service
+      option: Environment
+      value: "HTTP_PROXY=http://{{ the_conf.ip}}:8888"
+    loop: "{{ os_services }}"
+    become: true
+
+  - name: "[HACK] Make OS-CLI goes through HAProxy"
+    lineinfile:
+      path: ~/.bashrc
+      line: 'alias openstack="HTTP_PROXY=http://{{ the_conf.ip }}:8888 openstack"'
+      create: yes
+    become: true
+    become_user: stack
+
+  - name: "[HACK] Restart devstack@* services"
+    systemd:
+      name: "devstack@{{ item }}"
+      state: restarted
+      daemon_reload: yes
+    loop: "{{ os_services }}"
+    become: true

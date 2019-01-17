@@ -1,0 +1,73 @@
+# HAProxy Doc link:
+# - https://cbonte.github.io/haproxy-dconv/1.8/configuration.html
+
+global
+  user haproxy
+  group haproxy
+  log /dev/log    local0 debug
+  log /dev/log    local1 info
+  chroot /var/lib/haproxy
+  daemon
+  stats socket /run/haproxy/admin.sock mode 660 level admin
+  stats timeout 30s
+  nbproc 1
+  lua-load /etc/haproxy/lua/interpret_scope.lua
+
+defaults
+  log global
+  mode http
+  option redispatch
+  option httplog
+  option forwardfor
+  retries 3
+  timeout http-request 10s
+  timeout queue 1m
+  timeout connect 10s
+  timeout client 1m
+  timeout server 1m
+  timeout check 10s
+
+# All proxy names must be formed from upper and lower case letters,
+# digits, '-' (dash), '_' (underscore) , '.' (dot) and ':' (colon).
+# *It is mandatory that two proxies with overlapping capabilities
+# (frontend/backend) have different names*. See,
+# https://cbonte.github.io/haproxy-dconv/1.8/configuration.html#4
+{% for frontend in services|selectattr('Region', 'equalto', the_conf.name)|map(attribute='Frontend')|unique %}
+listen http-proxy-{{ loop.index }}
+  bind {{ frontend }}
+  {# [HACK] Ensure Host is named as the frontend. This is unnecessary
+   # for real HAProxy deployment since there is no redirection with
+   # the $HTTP_PROXY environment variable. -#}
+  acl is_neutron  hdr(host) -m str 10.0.2.15:9696
+  acl not_neutron hdr(host) -m str 10.0.2.15
+  http-request set-header Host {{ the_conf.ip }}:8888 if not_neutron
+  http-request set-header Host {{ the_conf.ip }}:9696 if is_neutron
+  {# [HACK] END -#}
+  http-request del-header X-Forwarded-Proto if { ssl_fc }
+  use_backend %[lua.interpret_scope]
+  # If no `use_backend` rule has been matched
+  default_backend transparent
+
+{% endfor %}
+
+# Request will be forwarded to the same IP address as the one from the
+# client connection
+backend transparent
+  server transp "*"
+
+# Backend named and configured after the `services.js` file
+{% for os_conf in os_confs %}
+{% for s in services|selectattr('Region', 'equalto', os_conf.name) %}
+backend {{ s.Region }}_{{ s['Service Type'] }}_{{ s.Interface }}
+{% if os_conf == the_conf %}
+  # Target concrete backend
+  server {{ s.Region }} {{ s.Backend }} check inter 2000 rise 2 fall 5
+{% else %}{# TODO: Ensure this is OK for Neutron #}
+  # Target HA of OS instance named {{ s.Region }}
+  http-request set-header Host {{ s.Frontend }}
+  server {{ s.Region }} {{ s.Frontend }} check inter 2000 rise 2 fall 5
+{% endif %}
+
+{% endfor %}
+
+{% endfor %}

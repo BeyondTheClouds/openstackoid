@@ -1,12 +1,19 @@
+--   ____                ______           __        _    __
+--  / __ \___  ___ ___  / __/ /____ _____/ /_____  (_)__/ /
+-- / /_/ / _ \/ -_) _ \_\ \/ __/ _ `/ __/  '_/ _ \/ / _  /
+-- \____/ .__/\__/_//_/___/\__/\_,_/\__/_/\_\\___/_/\_,_/
+--     /_/
+-- Make your OpenStacks Collaborative
+--
 -- Module for scope interpretation.
 --
+-- This Lua script redirects requests based on the HTTP request and a
+-- scope.
 --
--- This Lua script redirects requests based on
--- HTTP request port or path.
--- See,
--- http://www.arpalert.org/src/haproxy-lua-api/1.8/index.html
--- http://haproxy.tech-notes.net/7-3-6-fetching-http-samples-layer-7/
--- https://www.haproxy.com/documentation/aloha/9-0/traffic-management/lb-layer7/http-rewrite/
+-- HAProxy Lua Doc:
+-- * http://www.arpalert.org/src/haproxy-lua-api/1.8/index.html
+-- * http://haproxy.tech-notes.net/7-3-6-fetching-http-samples-layer-7/
+-- * https://www.haproxy.com/documentation/aloha/9-0/traffic-management/lb-layer7/http-rewrite/
 
 local inspect  = require('inspect')
 local json     = require('json')
@@ -19,7 +26,7 @@ local function get_scope(headers)
   -- Initialize to default scope
   local scope = {
     ["compute"]   = current_region,
-    -- ["identity"]  = current_region,
+    {#- ["identity"]  = current_region, #}
     ["identity"]  = "InstanceOne",
     ["image"]     = current_region,
     ["network"]   = current_region,
@@ -81,6 +88,7 @@ end
 local function interpret_scope(txn)
   local url = txn.sf:base()
   local headers = txn.http:req_get_headers()
+  core.log(core.info, 'receive req: '..inspect(url))
 
   -- Get the current service
   local current_service = services.lookup_by_reg_url(current_region, url)
