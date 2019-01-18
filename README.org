@@ -1,20 +1,43 @@
-#+TITLE: OpenStackoïd PoC
+#+TITLE: OpenStackoïd
 
-# TODO: Introduction
+/Make your OpenStacks Collaborative/
+
+This PoC aims at making several independent OpenStack instances
+collaborative. The main idea consists in extending the OpenStack CLI
+to define the collaboration process. Through a dedicated option
+(called ~--scope~), the DevOps specifies which services (e.g.,
+compute, image, identity, ...) of which OpenStack instance (e.g.,
+InstanceOne, InstanceTwo, ...) should be invoked to perform the CLI
+request. For instance, the provisioning of a VM in InstanceOne with an
+image in InstanceTwo looks like as follows:
+
+#+BEGIN_SRC sh
+openstack server create --flavor m1.tiny --image cirros \
+            --scope '{"compute": "InstanceOne", "image": "InstanceTwo"}' \
+            my-vm
+#+END_SRC
+
+This approach removes the relying on a single control plane and
+enables the segregation of the infrastructure into distinct areas
+resolving network partitioning and scalability challenges in most
+cases.
+
+To get more on the principle, [[https://beyondtheclouds.github.io/blog/][read our blog post]].
 
 * Try it
 Get the code with
 : git clone git@github.com:BeyondTheClouds/openstackoid.git -b stable/rocky --depth 1
 
-Then starts the two OpenStack instances (require tmux and vagrant).
+Then starts the two OpenStack instances (require tmux and Vagrant).
 : cd openstackoid; ./setup-env.sh
 
 The previous command starts two tmux windows and launches two
-OpenStack instances in a virtual machine. After 15 to 20 minutes, the
-time for Devstack to deploy the two OpenStack instances, the output
-may look like the following. The top window is connected to OpenStack
-~InstanceOne~ and the bottom one to ~InstanceTwo~. These two instances
-are completely independent and shared no services.
+OpenStack instances, each in a virtual machine, thanks to Vagrant.
+After 15 to 20 minutes, the time for Devstack to deploy the two
+OpenStack instances, the output may look like the following. The top
+window is connected to OpenStack ~InstanceOne~ and the bottom one to
+~InstanceTwo~. These two instances are completely independent and
+shared no services.
 
 #+begin_example
 stack@InstanceOne:~$
@@ -73,8 +96,6 @@ stack@InstanceTwo:~$ openstack image list
 #+end_example
 
 🎉
-
-* Principle
 
 * Setup
 # The setup is based on two runs of virtualbox-based enos deployement.
@@ -214,5 +235,4 @@ Run HAProxy from the terminal
 : http_proxy="http://192.168.141.245:8888" curl http://10.0.2.15:9696/v2.0/networks
 
 * Acknowledgment
-[[https://twitter.com/tcarrez/status/1061665184530481152][OpenStack Berlin Hackathon]], Team 5:
--
+[[https://twitter.com/tcarrez/status/1061665184530481152][OpenStack Berlin Hackathon]], Team 5
