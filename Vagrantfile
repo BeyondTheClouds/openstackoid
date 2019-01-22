@@ -18,6 +18,20 @@
 #   : vagrant provision --provision-with ha-scope
 #
 
+# Configuration of OpenStack instances
+os_confs = [
+  {
+    :name => "InstanceOne",
+    :ip => "192.168.141.245",
+    :ssh => 2141
+  },
+  {
+    :name => "InstanceTwo",
+    :ip => "192.168.142.245",
+    :ssh => 2142
+  }
+]
+
 Vagrant.configure(2) do |config|
   config.vm.box = "bento/ubuntu-16.04"
 
@@ -29,20 +43,6 @@ Vagrant.configure(2) do |config|
                               owner: "vagrant",
                               group: "vagrant"
   end
-
-  # Configuration of OpenStack instances
-  os_confs = [
-    {
-      :name => "InstanceOne",
-      :ip => "192.168.141.245",
-      :ssh => 2141
-    },
-    {
-      :name => "InstanceTwo",
-      :ip => "192.168.142.245",
-      :ssh => 2142
-    }
-  ]
 
   # Start OpenStacks
   os_confs.each do |os_conf|

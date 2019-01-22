@@ -11,10 +11,8 @@ the OpenStack CLI invokes to perform the CLI request. For instance,
 the provisioning of a VM in InstanceOne with an image in InstanceTwo
 looks like as follows:
 
-#+BEGIN_SRC sh
-openstack server create my-vm --flavor m1.tiny --image cirros \
-  --scope '{"compute": "InstanceOne", "image": "InstanceTwo"}'
-#+END_SRC
+: openstack server create my-vm --flavor m1.tiny --image cirros \
+:   --scope '{"compute": "InstanceOne", "image": "InstanceTwo"}'
 
 This approach enables the segregation of the infrastructure into
 distinct areas. It removes the relying on a single control plane and
@@ -29,11 +27,12 @@ yourself.
 * Table of Contents                                                  :TOC@2@gh:
 - [[#try-it][Try it]]
 - [[#how-it-works][How it works]]
-  - [[#generating-the-haproxy-configuration][Generating the HAProxy configuration]]
+  - [[#generating-the-haproxy-configuration-file][Generating the HAProxy configuration file]]
   - [[#scope-should-follow-the-workflow][Scope should follow the workflow]]
   - [[#resources-access-limitation][Resources access limitation]]
-  - [[#the-hack-tag-in-source-code][The ~HACK~ tag in source code.]]
 - [[#setup][Setup]]
+  - [[#openstack-deployment-with-devstack][OpenStack deployment with Devstack]]
+  - [[#scope-interpretation][Scope interpretation]]
 - [[#list-of-todos][List of TODOs]]
 - [[#misc][Misc]]
   - [[#see-haproxy-log][See HAProxy log]]
@@ -165,7 +164,7 @@ the targeted service. From there, it forwards the request whether to
 the local Backend ~10.0.2.15~ (l. [[(local-back)]]) or Frontend of the
 remote instance ~192.168.142.245~ (l. [[(remote-front)]]).
 
-** Generating the HAProxy configuration
+** Generating the HAProxy configuration file
 Based on a short description list of all services (see lst.
 [[lst:services-desc]]), it is easy to [[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/playbooks/haproxy/haproxy.cfg.j2][generate the HAProxy configuration
 file]] automatically. The description list, on the other hand, partially
@@ -238,142 +237,91 @@ forwards the request to the good instance.
 - Resource of another instance should be accessible from the first one
   (e.g., image is OK, network is NOK).
 
-** TODO The ~HACK~ tag in source code.
-- Devstack doesn't provide HAProxy deployment
-- We deployed HAProxy after Devstack and then ensure every request to
-  OpenStack goes through OpenStack with ~HTTP_PROXY~.
-- This is referenced in the code with the ~[HACK]~.
-- In a real-world deployment (a la Kolla), services are already hidden
-  behind HAProxy and thus ~[HACK]~ source code should be removed.
-
 * Setup
-# The setup is based on two runs of virtualbox-based enos deployement.
-# We are going to deploy, using enos, two distinct All-in-One OpenStack
-# instances. We'll then change their Haproxy configurations to make
-# these two OpenStacks collaborative by interpreting the scope.
+The setup is made of, but not limited to, two distinct VirtualBox VMs
+with an All-in-One OpenStack inside each. The [[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/setup-env.sh][setup-env.sh]] script
+starts two tmux windows and runs vagrant inside each window. Vagrant
+is in charge of deploying the All-in-One OpenStack and then
+configuring OpenStack to interpret the ~--scope~.
 
-# First, clone the project:
-# : git clone git@github.com:BeyondTheClouds/openstackoid.git -b stable/queens
+The [[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/Vagrantfile][Vagrantfile]] contains the description of the two All-in-One
+OpenStack at its top (see ~os_confs~). The ~:name~ refers to the name
+of the instance, ~:ip~ to the Frontend address (has to be accessible
+by other instances), and ~:ssh~ to the port used by Vagrant for SSH
+connections. Doing a ~vagrant up~ reads that configuration and starts
+two Ubuntu/16.04 VMs with these characteristics. Adding a third entry
+in ~os_confs~ and running ~vagrant up~ again will start a third
+All-in-One OpenStack.
 
-# ** Deployment of the first instance (i.e., RegionOne)
-# Setup a vanilla OpenStack with enos.
+#+CAPTION: Configuration of OpenStack instances
+#+begin_src ruby
+os_confs = [
+  {
+    :name => "InstanceOne",
+    :ip => "192.168.141.245",
+    :ssh => 2141
+  },
+  {
+    :name => "InstanceTwo",
+    :ip => "192.168.142.245",
+    :ssh => 2142
+  }
+]
+#+end_src
 
-# #+BEGIN_SRC sh
-# cd RegionOne
-# enos deploy -f ./regionOne.yaml -e EnvRegionOne
-# source EnvRegionOne/admin-openrc
-# #+END_SRC
+It is also possible to start only one OpenStack instance by giving its
+name after the ~vagrant up~. For instance, the following command only
+starts and configures the ~InstanceOne~.
 
-# At that point, you've got a fully operational stable/queens OpenStack
-# deployed with kolla-ansible. You can do an ~openstack endpoint list~
-# for instance. Then, generate HAProxy configuration files as explained
-# in section [[#sec:ha-confs]].
+: vagrant up InstanceOne
 
-# Afterwards, tell enos to reconfigure OpenStack with the new
-# configuration, to take it into account.
+** OpenStack deployment with Devstack
+A ~vagrant up <InstanceName>~ on its first run automatically deploys
+OpenStack with Devstack and then configures it for the ~--scope~. It
+is also possible to only run the deployment of Devstack with the
+following commands.
 
-# : enos os --reconfigure --tags haproxy --env EnvRegionOne
+: vagrant up <InstanceName> --no-provision
+: vagrant provision <InstanceName> --provision-with devstack
 
-# Kill haproxy. Kolla/haproxy container is built without the support of
-# lua and we need it to interpret the scope.
+The ~--provision-with devstack~ refers to the Ansible
+[[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/playbooks/devstack.yml][playbooks/devstack.yml]] playbook. In brief, this playbook:
+1. Adds a stack user.
+2. Clones Devstack stable/rocky.
+3. Generates a local.conf.
+4. Runs Devstack deployment.
 
-# : vagrant ssh
-# : sudo su
-# : docker stop haproxy
+If something goes wrong during the execution of this playbook, this is
+OK to rerun the ~vagrant provision <InstanceName> --provision-with
+devstack~, since the Ansible is idempotent.
 
-# Because of the kill of haproxy, keepalived unbinds its VIP. So, we
-# have to set it manually.
+** Scope interpretation
+In the same manner of the previous section, it is also possible to
+only run the configurations of one OpenStack instance to interpret the
+~--scope~ with the next command.
 
-# : ip addr add 192.168.142.244/32 dev eth2
+: vagrant provision <InstanceName> --provision-with ha-scope
 
-# Finally, install a version of HAProxy that interpret lua and run it.
+The ~--provision-with ha-scope~ refers to the Ansible
+[[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/playbooks/ha-scope.yml][playbooks/ha-scope.yml]] playbook. In brief, this playbook:
+1. Computes the list of services as explained in the "How it works"
+   (see, [[#generating-the-haproxy-configuration-file][Generating the HAProxy configuration file]]).
+2. Uses that list to generate the HAProxy configuration file, and then
+   deploys HAProxy.
+3. Installs a new plugin for python-openstackclient that adds the
+   ~--scope~ in the CLI.
+4. Ensures that HTTP requests of OpenStack services go through the
+   proxy (on that particular point, read the subsection below).
 
-# : apt install haproxy -y
-# : cd /etc/kolla/haproxyoid
-# : haproxy -f haproxy.cfg
-
-# ** Deployment of the second instance (i.e., RegionTwo)
-# Same as the [[*Deployment of the first instance (i.e., RegionOne)][deployment of RegionOne]], but with RegionTwo.
-
-# #+BEGIN_SRC sh
-# cd RegionTwo
-# enos deploy -f ./regionTwo.yaml -e EnvRegionTwo
-# source EnvRegionOne/admin-openrc
-# # TODO: Generate haproxy configuration files...
-# enos os --reconfigure --tags haproxy --env EnvRegionOne
-# vagrant ssh
-# sudo su
-# docker stop haproxy
-# # Wait few seconds, ..
-# ip addr add 192.168.144.244/32 dev eth2
-# apt install haproxy -y
-# cd /etc/kolla/haproxyoid
-# haproxy -f haproxy.cfg
-# #+END_SRC
-
-# ** Generate HAProxy configuration files
-# :PROPERTIES:
-# :CUSTOM_ID: sec:ha-confs
-# :END:
-# First, generate the [[file:RegionOne/patches/haproxy/services.json][services.json]] file that lists all the endpoints of
-# all your OpenStack instances. To make this file, run the following
-# command on all OpenStack instances and concatenate the results.
-
-# #+BEGIN_SRC sh
-# openstack endpoint list \
-#   -f json \
-#   -c "Region" -c "Service Type" -c "Interface" -c "URL"
-# #+END_SRC
-
-# URLs have to be cleaned a little bit. Remove the protocol part (e.g.,
-# ~http://~) and placeholders for values (e.g., ~%(tenant_id)s~).
-
-# Then get the generated haproxy configuration file of the first OS
-# instance.
-
-# #+BEGIN_SRC sh
-# scp -i .vagrant/machines/enos-0/virtualbox/private_key \
-#     -P 2222 \
-#     root@127.0.0.1:/etc/kolla/haproxy/haproxy.cfg .
-# #+END_SRC
-
-# And rewrite it so that ~keystone_internal~, ~keystone_admin~,
-# ~glance_api~, ~nova_api~, ~placement_api~ and ~neutron_server~ call
-# the scope-interpret sample fetch. For instance, with
-# ~keystone_internal~ of RegionOne.
-
-# #+BEGIN_SRC conf
-# listen keystone_internal
-#   bind 192.168.142.244:5000
-#   http-request del-header X-Forwarded-Proto if { ssl_fc }
-#   use_backend %[lua.scope-interpret]
-
-# backend RegionOne_identity_public
-#   server enos-r1 192.168.142.245:5000 check inter 2000 rise 2 fall 5
-# backend RegionOne_identity_internal
-#   server enos-r1 192.168.142.245:5000 check inter 2000 rise 2 fall 5
-# backend RegionTwo_identity_public
-#   http-request set-header Host 192.168.144.244:5000
-#   server enos-r2 192.168.144.244:5000 check inter 2000 rise 2 fall 5
-# backend RegionTwo_identity_internal
-#   http-request set-header Host 192.168.144.244:5000
-#   server enos-r2 192.168.144.244:5000 check inter 2000 rise 2 fall 5
-# #+END_SRC
-
-# Backend name is generated based on fields "Region", "Service Type" and
-# "Interface" of [[file:RegionOne/patches/haproxy/services.json][services.json]]. Servers of the current region link to
-# the concrete backend (e.g., ~192.168.142.245:5000~). Servers of other
-# regions link to HAProxy of other regions (e.g.,
-# ~192.168.144.244:5000~, as in "URL" of [[file:RegionOne/patches/haproxy/services.json][services.json]]).
-
-# ** Change openstack CLI to get the scope
-# Install the following cli that interpret the ~--scope~:
-# #+BEGIN_SRC sh
-# git clone git@github.com:BeyondTheClouds/python-openstackclient.git -b openstackoid/queens
-# pip install -e python-openstackclient
-# #+END_SRC
-
-# ** [HACK] tag
+*** ~[HACK]~ tag in the code
+Devstack doesn't provide HAProxy deployment by default and we want to
+avoid the modification of Devstack -- or any other OpenStack services
+-- as much as possible. Thus, we deployed HAProxy after Devstack and
+then ensure each request to OpenStack goes through the proxy thanks to
+the ~HTTP_PROXY~ environment variable. This is referenced in the
+current code with the ~[HACK]~ tag. In a real-world deployment (a la
+Kolla), services are already hidden behind HAProxy and thus code
+marked with the ~[HACK]~ tag should be removed.
 
 * List of TODOs
 - [ ] Remove the [[https://github.com/BeyondTheClouds/openstackoid/blob/665bb991f3b5a2b47f2b1073cab1e6ae4ea1d339/playbooks/haproxy/lua/interpret_scope.lua.j2#L23][forced link to Keystone of InstanceOne]].
