@@ -379,4 +379,14 @@ Run HAProxy from the terminal
 : http_proxy="http://${HOST_IP}:8888" curl http://10.0.2.15:9696/v2.0/networks
 
 * Acknowledgment
-[[https://twitter.com/tcarrez/status/1061665184530481152][OpenStack Berlin Hackathon]], Team 5
+We would like to thanks members of the OpenStack community, and
+especially members of the [[https://twitter.com/tcarrez/status/1061665184530481152][OpenStack Berlin Hackathon]] (team 5) which
+have laid some of the initial foundation for this work:
+- [[https://www.linkedin.com/in/lebre/][Adrien Lebre]]
+- [[https://www.linkedin.com/in/ashkan-kamyab-a97b0495/][Ashkan Kamyab]]
+- [[https://www.linkedin.com/in/curtis-collicutt-99037295/][Curtis Collicutt]]
+- [[https://www.linkedin.com/in/elvissn/][Elvis Noudjeu]]
+- [[https://www.linkedin.com/in/ilya-alekseyev-7a29b310/][Ilya Alekseyev]]
+- [[https://www.linkedin.com/in/jrbalderrama/][Javier Rojas Balderrama]]
+- [[https://rcherrueau.github.io/][Ronan-Alexandre Cherrueau]]
+- [[https://www.linkedin.com/in/magyarizsolt/][Zsolt Magyari]]
