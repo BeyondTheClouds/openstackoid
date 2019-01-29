@@ -38,7 +38,7 @@
       name: "{{item}}"
       editable: true
     with_items:
-      - git+https://github.com/Beyondtheclouds/python-openstackclient.git@openstackoid/queens#egg=python-openstackclient
+      - file:///vagrant/python-openstackoidclient
       # - TODO: git+https://github.com/Beyondtheclouds/keystonemiddleware.git@openstackoid/rocky#egg=keystonemiddleware
     become: true
 

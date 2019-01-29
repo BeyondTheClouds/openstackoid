@@ -5,14 +5,14 @@
 This PoC aims at making several independent OpenStack instances
 collaborative. The main idea consists in extending the OpenStack CLI
 to define the collaboration process. A dedicated option, called
-~--scope~, specifies which services (e.g., compute, image, identity,
-...) of which OpenStack instance (e.g., InstanceOne, InstanceTwo, ...)
-the OpenStack CLI invokes to perform the CLI request. For instance,
-the provisioning of a VM in InstanceOne with an image in InstanceTwo
-looks like as follows:
+~--os-scope~, specifies which services (e.g., compute, image,
+identity, ...) of which OpenStack instance (e.g., InstanceOne,
+InstanceTwo, ...) an OpenStack is made of to perform the CLI request.
+For instance, the provisioning of a VM in InstanceOne with an image in
+InstanceTwo looks like as follows:
 
 : openstack server create my-vm --flavor m1.tiny --image cirros \
-:   --scope '{"compute": "InstanceOne", "image": "InstanceTwo"}'
+:   --os-scope '{"compute": "InstanceOne", "image": "InstanceTwo"}'
 
 This approach enables the segregation of the infrastructure into
 distinct areas. It removes the relying on a single control plane and
@@ -26,10 +26,10 @@ yourself.
 
 * Table of Contents                                                  :TOC@2@gh:
 - [[#try-it][Try it]]
+- [[#limitation][Limitation]]
 - [[#how-it-works][How it works]]
   - [[#generating-the-haproxy-configuration-file][Generating the HAProxy configuration file]]
   - [[#scope-should-follow-the-workflow][Scope should follow the workflow]]
-  - [[#resources-access-limitation][Resources access limitation]]
 - [[#setup][Setup]]
   - [[#openstack-deployment-with-devstack][OpenStack deployment with Devstack]]
   - [[#scope-interpretation][Scope interpretation]]
@@ -81,8 +81,8 @@ stack@InstanceTwo:~$ openstack image list
 +--------------------------------------+--------------------------+--------+
 #+end_example
 
-Moreover, you can use the ~--scope~ option that tells OpenStack of a
-specific instance to do something by using a service from another
+Moreover, you can use the ~--os-scope~ option that tells OpenStack of
+a specific instance to do something by using a service from another
 instance. For example, you can tell to the ~InstanceOne~ to start a VM
 by using the ~image~ service from ~InstanceTwo~ (the ~ID~ of ~image~
 is the one of ~InstanceTwo~). In the scope, a service is implicitly
@@ -91,7 +91,7 @@ services.
 
 #+begin_example
 stack@InstanceOne:~$ openstack server create my-vm \
-  --scope '{"image": "InstanceTwo"}' \
+  --os-scope '{"image": "InstanceTwo"}' \
   --image 45da7b62-163c-4c78-aac7-363cbf4627a4 \
   --flavor m1.tiny \
   --wait
@@ -117,6 +117,12 @@ stack@InstanceTwo:~$ openstack image list
 
 🎉
 
+* TODO Limitation
+- Same project id
+- Same keystone credential
+- Resource of another instance should be accessible from the first one
+  (e.g., image is OK, network is NOK).
+
 * How it works
   :PROPERTIES:
   :CUSTOM_ID: how-it-works
@@ -131,7 +137,7 @@ in front of it. In such deployment, a service (e.g., Glance API of
   most cases, forwards it to the Backend.
 
 Here, we add a new capability to HAProxy [[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/playbooks/haproxy/lua/interpret_scope.lua.j2][that interprets]] the
-~--scope~. Instead of forwarding the request to the local Backend,
+~--os-scope~. Instead of forwarding the request to the local Backend,
 HAProxy determines the instance of the targeted service from the scope
 and URL. It then forwards the request to the local Backend only if the
 current instance is equivalent to the determined one. Otherwise, it
@@ -159,7 +165,7 @@ backend InstanceTwo_image_public
 #+end_src
 
 The ~lua.interpret_scope~ line [[(lua-scope)]] determines the name of the
-backend based on the ~--scope '{"image": "InstanceTwo"}~ and URL of
+backend based on the ~--os-scope '{"image": "InstanceTwo"}~ and URL of
 the targeted service. From there, it forwards the request whether to
 the local Backend ~10.0.2.15~ (l. [[(local-back)]]) or Frontend of the
 remote instance ~192.168.142.245~ (l. [[(remote-front)]]).
@@ -202,47 +208,41 @@ and Backend for all services still have to be added.
 #+end_src
 
 ** Scope should follow the workflow
-HAProxy determines from the ~--scope~ the address of the targeted
+HAProxy determines from the ~--os-scope~ the address of the targeted
 service. Which means, the scope has to be defined for every request
 and subsequent requests. For instance, when Alice does an ~openstack
-server create --scope ...~, the value of the ~--scope~ should not only
-be attached to the initial ~POST /servers~ request made by the CLI.
-But also, to all subsequent requests of the workflow, including Nova
-request to Keystone to check Alice credentials, Nova request to Glance
-to check/get the image. Glance request to Keystone to check Alice
-credentials ...
+server create --os-scope ...~, the value of the ~--os-scope~ should
+not only be attached to the initial ~POST /servers~ request made by
+the CLI. But also, to all subsequent requests of the workflow,
+including Nova request to Keystone to check Alice credentials, Nova
+request to Glance to check/get the image. Glance request to Keystone
+to check Alice credentials ...
 
 A first solution is to modify the OpenStack code of all services to
-ensure that, e.g., when Alice contacts Nova with a specific ~--scope~,
-then Nova propagates that ~--scope~ in the subsequent requests.
-However, in OpenStackoid, we want to avoid as much as possible
-modifications to the vanilla code.
+ensure that, e.g., when Alice contacts Nova with a specific
+~--os-scope~, then Nova propagates that ~--os-scope~ in the subsequent
+requests. However, in OpenStackoid, we want to avoid as much as
+possible modifications to the vanilla code.
 
 Another naive implementation would try to implement the scope
 propagation at HAProxy level -- and keep OpenStack code as it is.
 Unfortunately, this doesn't work since HAPrxoy is unlikely to figure
 out that, e.g., the current request from Nova to Glance comes from a
-previous request from Alice to Nova with a specific ~--scope~.
+previous request from Alice to Nova with a specific ~--os-scope~.
 
 Luckily, every OpenStack service already propagates information from
 one service to another during the entire workflow of command: the
 Keystone ~X-Auth-Token~ that contains Alice credentials. Here we reuse
-that information to piggyback the ~--scope~. Then, HAProxy seeks for
-the ~X-Auth-Token~, extracts the scope and finally interprets it to
-forwards the request to the good instance.
-
-** TODO Resources access limitation
-- Same project id
-- Same keystone credential
-- Resource of another instance should be accessible from the first one
-  (e.g., image is OK, network is NOK).
+that information to piggyback the ~--os-scope~. Then, HAProxy seeks
+for the ~X-Auth-Token~, extracts the scope and finally interprets it
+to forwards the request to the good instance.
 
 * Setup
 The setup is made of, but not limited to, two distinct VirtualBox VMs
 with an All-in-One OpenStack inside each. The [[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/setup-env.sh][setup-env.sh]] script
 starts two tmux windows and runs vagrant inside each window. Vagrant
 is in charge of deploying the All-in-One OpenStack and then
-configuring OpenStack to interpret the ~--scope~.
+configuring OpenStack to interpret the ~--os-scope~.
 
 The [[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/Vagrantfile][Vagrantfile]] contains the description of the two All-in-One
 OpenStack at its top (see ~os_confs~). The ~:name~ refers to the name
@@ -277,8 +277,8 @@ starts and configures the ~InstanceOne~.
 
 ** OpenStack deployment with Devstack
 A ~vagrant up <InstanceName>~ on its first run automatically deploys
-OpenStack with Devstack and then configures it for the ~--scope~. It
-is also possible to only run the deployment of Devstack with the
+OpenStack with Devstack and then configures it for the ~--os-scope~.
+It is also possible to only run the deployment of Devstack with the
 following commands.
 
 : vagrant up <InstanceName> --no-provision
@@ -298,7 +298,7 @@ devstack~, since the Ansible is idempotent.
 ** Scope interpretation
 In the same manner of the previous section, it is also possible to
 only run the configurations of one OpenStack instance to interpret the
-~--scope~ with the next command.
+~--os-scope~ with the next command.
 
 : vagrant provision <InstanceName> --provision-with ha-scope
 
@@ -309,7 +309,7 @@ The ~--provision-with ha-scope~ refers to the Ansible
 2. Uses that list to generate the HAProxy configuration file, and then
    deploys HAProxy.
 3. Installs a new plugin for python-openstackclient that adds the
-   ~--scope~ in the CLI.
+   ~--os-scope~ in the CLI.
 4. Ensures that HTTP requests of OpenStack services go through the
    proxy (on that particular point, read the subsection below).
 
