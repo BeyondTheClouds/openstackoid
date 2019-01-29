@@ -19,14 +19,13 @@ local inspect  = require('inspect')
 local json     = require('json')
 local services = require('services')
 
-local current_region = "{{ the_conf.name }}"
-
 -- Returns the scope of the request.
-local function get_scope(headers)
+local function get_scope(headers, current_region)
   -- Initialize to default scope
   local scope = {
     ["compute"]   = current_region,
-    {#- ["identity"]  = current_region, #}
+    -- XXX: Remove this
+    -- ["identity"]  = current_region,
     ["identity"]  = "InstanceOne",
     ["image"]     = current_region,
     ["network"]   = current_region,
@@ -85,7 +84,7 @@ local function clean_token_header(token_name, txn)
 end
 
 -- Extract the scope of the request and interpret it.
-local function interpret_scope(txn)
+local function interpret_scope(txn, current_region)
   local url = txn.sf:base()
   local headers = txn.http:req_get_headers()
   core.log(core.info, 'receive req: '..inspect(url))
@@ -94,7 +93,7 @@ local function interpret_scope(txn)
   local current_service = services.lookup_by_reg_url(current_region, url)
 
   -- Find the scope and targeted region
-  local scope = get_scope(headers)
+  local scope = get_scope(headers, current_region)
   local targeted_region = scope[current_service["Service Type"]]
   core.log(core.info, 'targeted region: '..inspect(targeted_region))
 
@@ -123,11 +122,11 @@ local function interpret_scope(txn)
   return backend_name
 end
 
-core.register_fetches("interpret_scope", function(txn)
+core.register_fetches("interpret_scope", function(txn, current_region)
   -- Only works with http txn, no tcp
   if txn.sf:req_fhdr("host")..txn.sf:path() == "" then
     return
   else
-    return interpret_scope(txn)
+    return interpret_scope(txn, current_region)
   end
 end)

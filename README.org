@@ -19,17 +19,16 @@ distinct areas. It removes the relying on a single control plane and
 thus, resolves network partitioning and scalability challenges in most
 cases.
 
-To get more insight, read the [[#how-it-works-haproxy-rules-the-flow][how it works]] section or [[#try-it][try it]] by
+To get more insight, read the [[#how-it-works][how it works]] section or [[#try-it][try it]] by
 yourself.
-# Also read our [[https://beyondtheclouds.github.io/blog/][blog post]]
-
 
 * Table of Contents                                                  :TOC@2@gh:
 - [[#try-it][Try it]]
 - [[#limitation][Limitation]]
-- [[#how-it-works-haproxy-rules-the-flow][How it works: HAProxy rules the flow]]
-  - [[#generating-the-haproxy-configuration-file][Generating the HAProxy configuration file]]
+- [[#how-it-works][How it works]]
+  - [[#haproxy-rules-the-flow][HAProxy rules the flow]]
   - [[#scope-should-follow-the-workflow][Scope should follow the workflow]]
+  - [[#the-special-case-of-keystone][The special case of Keystone]]
 - [[#setup][Setup]]
   - [[#provisioning-openstack-with-devstack][Provisioning OpenStack with Devstack]]
   - [[#provisioning-the-scope-interpretation][Provisioning the scope interpretation]]
@@ -47,7 +46,8 @@ yourself.
 Get the code with a git clone.
 : git clone git@github.com:BeyondTheClouds/openstackoid.git -b stable/rocky --depth 1
 
-Then starts the two OpenStack instances (require tmux and Vagrant).
+Then starts the two OpenStack instances (require tmux v2 and Vagrant
+v2.2 -- if you don't want to use tmux, refer to the [[#setup][setup]] section).
 : cd openstackoid; ./setup-env.sh
 
 The previous command starts two tmux windows and launches two
@@ -128,10 +128,11 @@ stack@InstanceTwo:~$ openstack image list
 - Resource of another instance should be accessible from the first one
   (e.g., image is OK, network is NOK).
 
-* How it works: HAProxy rules the flow
+* How it works
   :PROPERTIES:
-  :CUSTOM_ID: how-it-works-haproxy-rules-the-flow
+  :CUSTOM_ID: how-it-works
   :END:
+** HAProxy rules the flow
 In brief, every OpenStack instance comes with a proxy (here HAProxy)
 in front of it. In such deployment, a service (e.g., Glance API of
 ~InstanceOne~) is available via two addresses:
@@ -141,10 +142,10 @@ in front of it. In such deployment, a service (e.g., Glance API of
   that targets HAProxy. HAProxy then evaluates the request and, in
   most cases, forwards it to the Backend.
 
-Here, we add a new capability to HAProxy [[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/playbooks/haproxy/lua/interpret_scope.lua.j2][that interprets]] the
-~--os-scope~. Instead of forwarding the request to the local Backend,
-HAProxy determines the instance of the targeted service from the scope
-and URL. It then forwards the request to the local Backend only if the
+Here, we add HAProxy the capability [[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/playbooks/haproxy/lua/interpret_scope.lua][to interprets]] the ~--os-scope~.
+Instead of forwarding the request to the local Backend, HAProxy
+determines the instance of the targeted service from the scope and
+URL. It then forwards the request to the local Backend only if the
 current instance is equivalent to the determined one. Otherwise, it
 forwards the request to the Frontend of the determined instance.
 
@@ -169,13 +170,14 @@ backend InstanceTwo_image_public
 # Do the same for compute, identity, ...
 #+end_src
 
-The ~lua.interpret_scope~ line [[(lua-scope)]] determines the name of the
-backend based on the ~--os-scope '{"image": "InstanceTwo"}~ and URL of
-the targeted service. From there, it forwards the request whether to
-the local Backend ~10.0.2.15~ (l. [[(local-back)]]) or Frontend of the
-remote instance ~192.168.142.245~ (l. [[(remote-front)]]).
+The ~lua.interpret_scope~ line [[(lua-scope)]] is a [[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/playbooks/haproxy/lua/interpret_scope.lua][Lua script]] that
+determines the name of the backend based on the ~--os-scope '{"image":
+"InstanceTwo"}~ and URL of the targeted service. From there, it
+forwards the request whether to the local Backend ~10.0.2.15~ (l.
+[[(local-back)]]) or Frontend of the remote instance ~192.168.142.245~ (l.
+[[(remote-front)]]).
 
-** Generating the HAProxy configuration file
+*** Generating the HAProxy configuration file
 Based on a short description list of all services (see lst.
 [[lst:services-desc]]), it is easy to [[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/playbooks/haproxy/haproxy.cfg.j2][generate the HAProxy configuration
 file]] automatically. The description list, on the other hand, partially
@@ -226,12 +228,12 @@ to check Alice credentials ...
 A first solution is to modify the OpenStack code of all services to
 ensure that, e.g., when Alice contacts Nova with a specific
 ~--os-scope~, then Nova propagates that ~--os-scope~ in the subsequent
-requests. However, in OpenStackoid, we want to avoid as much as
+requests. However, in OpenStackoïd, we want to avoid as much as
 possible modifications to the vanilla code.
 
 Another naive implementation would try to implement the scope
 propagation at HAProxy level -- and keep OpenStack code as it is.
-Unfortunately, this doesn't work since HAPrxoy is unlikely to figure
+Unfortunately, this doesn't work since HAProxy is unlikely to figure
 out that, e.g., the current request from Nova to Glance comes from a
 previous request from Alice to Nova with a specific ~--os-scope~.
 
@@ -242,7 +244,13 @@ that information to piggyback the ~--os-scope~. Then, HAProxy seeks
 for the ~X-Auth-Token~, extracts the scope and finally interprets it
 to forwards the request to the good instance.
 
+** TODO The special case of Keystone
+TODO
+
 * Setup
+  :PROPERTIES:
+  :CUSTOM_ID: setup
+  :END:
 The setup is made of, but not limited to, two distinct VirtualBox VMs
 with an All-in-One OpenStack inside each. The [[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/setup-env.sh][setup-env.sh]] script
 starts two tmux windows and runs vagrant inside each window. Vagrant
@@ -250,17 +258,17 @@ is in charge of deploying the All-in-One OpenStack and then
 configuring OpenStack to interpret the ~--os-scope~.
 
 The [[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/Vagrantfile][Vagrantfile]] contains the description of the two All-in-One
-OpenStack at its top (see ~os_confs~). The ~:name~ refers to the name
-of the instance, ~:ip~ to the Frontend address (has to be accessible
-by other instances), and ~:ssh~ to the port used by Vagrant for SSH
-connections. Doing a ~vagrant up~ reads that configuration and starts
-two Ubuntu/16.04 VMs with these characteristics. Adding a third entry
-in ~os_confs~ and running ~vagrant up~ again will start a third
-All-in-One OpenStack.
+OpenStack at its top (see ~os_instances~). The ~:name~ refers to the
+name of the instance, ~:ip~ to the Frontend address (has to be
+accessible by other instances), and ~:ssh~ to the port used by Vagrant
+for SSH connections. Doing a ~vagrant up~ reads that configuration and
+starts two Ubuntu/16.04 VMs with these characteristics. Adding a third
+entry in ~os_instances~ and running ~vagrant up~ again will start a
+third All-in-One OpenStack.
 
 #+CAPTION: Configuration of OpenStack instances
 #+begin_src ruby
-os_confs = [
+os_instances = [
   {
     :name => "InstanceOne",
     :ip => "192.168.141.245",
@@ -283,7 +291,7 @@ starts and configures the ~InstanceOne~.
 ** Provisioning OpenStack with Devstack
 A ~vagrant up <InstanceName>~ on its first run automatically deploys
 OpenStack with Devstack and then configures it for the ~--os-scope~.
-It is also possible to only run the deployment of Devstack with the
+But, it is possible to only run the deployment of Devstack with the
 following commands.
 
 : vagrant up <InstanceName> --no-provision
@@ -296,19 +304,19 @@ The ~--provision-with devstack~ refers to the Ansible
 3. Generates a local.conf.
 4. Runs Devstack deployment.
 
-If something goes wrong during the execution of this playbook, this is
-OK to rerun the ~vagrant provision <InstanceName> --provision-with
-devstack~, since the Ansible is idempotent.
+If something goes wrong during the execution of this playbook,
+everything is OK. Simply rerun the ~vagrant provision <InstanceName>
+--provision-with devstack~, since Ansible playbooks are idempotent.
 
 ** Provisioning the scope interpretation
 In the same manner of the previous section, it is also possible to
 only run the configurations of one OpenStack instance to interpret the
 ~--os-scope~ with the next command.
 
-: vagrant provision <InstanceName> --provision-with ha-scope
+: vagrant provision <InstanceName> --provision-with os-scope
 
-The ~--provision-with ha-scope~ refers to the Ansible
-[[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/playbooks/ha-scope.yml][playbooks/ha-scope.yml]] playbook. In brief, this playbook:
+The ~--provision-with os-scope~ refers to the Ansible
+[[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/playbooks/os-scope.yml][playbooks/os-scope.yml]] playbook. In brief, this playbook:
 1. Computes the list of services as explained in the "How it works"
    (see, [[#generating-the-haproxy-configuration-file][Generating the HAProxy configuration file]]).
 2. Uses that list to generate the HAProxy configuration file, and then
@@ -316,7 +324,11 @@ The ~--provision-with ha-scope~ refers to the Ansible
 3. Installs a new plugin for python-openstackclient that adds the
    ~--os-scope~ in the CLI.
 4. Ensures that HTTP requests of OpenStack services go through the
-   proxy (on that particular point, read the subsection below).
+   proxy (on that particular point, read the next section).
+
+If something goes wrong during the execution of this playbook,
+everything is OK. Simply rerun the ~vagrant provision <InstanceName>
+--provision-with os-scope~, since Ansible playbooks are idempotent.
 
 *** ~[HACK]~ tag in the code
 Devstack doesn't provide HAProxy deployment by default and we want to
@@ -325,8 +337,8 @@ avoid the modification of Devstack -- or any other OpenStack services
 then ensure each request to OpenStack goes through the proxy thanks to
 the ~HTTP_PROXY~ environment variable. This is referenced in the
 current code with the ~[HACK]~ tag. In a real-world deployment (a la
-Kolla), services are already hidden behind HAProxy and thus code
-marked with the ~[HACK]~ tag should be removed.
+Kolla), services are already hidden behind HAProxy and code marked
+with the ~[HACK]~ tag should be removed.
 
 * List of TODOs
 - [ ] Remove the [[https://github.com/BeyondTheClouds/openstackoid/blob/665bb991f3b5a2b47f2b1073cab1e6ae4ea1d339/playbooks/haproxy/lua/interpret_scope.lua.j2#L23][forced link to Keystone of InstanceOne]].
@@ -336,9 +348,9 @@ marked with the ~[HACK]~ tag should be removed.
 .
 ├── playbooks                     List of provisioning playbooks
 │   ├── devstack.yml              - Devstack provisioning
-│   ├── haproxy                   - HAProxy conf file for OpenStackoid
-│   └── ha-scope.yml              - OpenStackoid provisioning
-├── python-openstackoidclient     OpenStackoid CLI plugin
+│   ├── os-scope.yml              - OpenStackoïd provisioning
+│   └── haproxy                   - HAProxy conf files for OpenStackoïd
+├── python-openstackoidclient     OpenStackoïd CLI plugin
 │   ├── openstackoidclient
 │   │   ├── client.py
 │   │   └── __init__.py
@@ -364,7 +376,7 @@ Run HAProxy from the terminal
 : sudo systemctl stop haproxy
 : sudo vim +6 /etc/haproxy/haproxy.cfg # comment chroot and daemon line
 : sudo LUA_PATH="/etc/haproxy/lua/?.lua;" haproxy -f /etc/haproxy/haproxy.cfg
-: http_proxy="http://192.168.141.245:8888" curl http://10.0.2.15:9696/v2.0/networks
+: http_proxy="http://${HOST_IP}:8888" curl http://10.0.2.15:9696/v2.0/networks
 
 * Acknowledgment
 [[https://twitter.com/tcarrez/status/1061665184530481152][OpenStack Berlin Hackathon]], Team 5

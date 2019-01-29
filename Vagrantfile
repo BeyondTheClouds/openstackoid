@@ -15,11 +15,11 @@
 # - Deploy OpenStack solely
 #   : vagrant up --provision-with devstack
 # - Configure HAProxy and the scope
-#   : vagrant provision --provision-with ha-scope
+#   : vagrant provision --provision-with os-scope
 #
 
 # Configuration of OpenStack instances
-os_confs = [
+os_instances = [
   {
     :name => "InstanceOne",
     :ip => "192.168.141.245",
@@ -45,8 +45,8 @@ Vagrant.configure(2) do |config|
   end
 
   # Start OpenStacks
-  os_confs.each do |os_conf|
-    make_os config, os_conf, os_confs
+  os_instances.each do |os_instance|
+    make_os config, os_instance, os_instances
   end
 end
 
@@ -70,26 +70,26 @@ end
 # phase:
 #
 # 1. --provision-with devstack :: Deploys OS with Devstack
-# 2. --provision-with ha-scope :: Deploys HAProxy and set the scope
+# 2. --provision-with os-scope :: Deploys HAProxy and set the scope
 #    interpretation.
-def make_os(config, os_conf, os_confs)
-  config.vm.define os_conf[:name] do |os|
+def make_os(config, os_instance, os_instances)
+  config.vm.define os_instance[:name] do |os|
     # exit!
-    os.vm.hostname = os_conf[:name]
-    os.vm.network :private_network, ip: os_conf[:ip], auto_config: true
-    os.vm.network :forwarded_port, guest: 22, host: os_conf[:ssh], id: "ssh"
+    os.vm.hostname = os_instance[:name]
+    os.vm.network :private_network, ip: os_instance[:ip], auto_config: true
+    os.vm.network :forwarded_port, guest: 22, host: os_instance[:ssh], id: "ssh"
     #os.vm.network :forwarded_port, guest: 80, host: 8881
 
     # Setup and Install devstack
     run_ansible(os.vm, "devstack", {
-        :os_name => os_conf[:name],
-        :os_ip => os_conf[:ip]
+        :os_name => os_instance[:name],
+        :os_ip => os_instance[:ip]
       })
 
     # Interpret the scope
-    run_ansible(os.vm, "ha-scope", {
-      :the_conf => os_conf,
-      :os_confs => os_confs
+    run_ansible(os.vm, "os-scope", {
+      :current_instance => os_instance,
+      :os_instances => os_instances
     })
   end
 end

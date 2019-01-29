@@ -33,7 +33,7 @@
       file: haproxy/services.json
     run_once: True
 
-  - name: Install patched OS-CLI and K-middleware that interpret the scope
+  - name: Install OS-CLI plugin and patched K-middleware to interpret the scope
     pip:
       name: "{{item}}"
       editable: true
@@ -45,36 +45,30 @@
 # ------------------------------------------------------------------------
 # -- HAProxy with Scope interpretation
 
-  - name: Make HAProxy configuration file (haproxy.cfg)
+  - name: Make a directory for HAProxy
+    file:
+      path: /etc/haproxy
+      state: directory
+    become: true
+
+  - name: Render HAProxy configuration file (haproxy.cfg)
     template:
       src: haproxy/haproxy.cfg.j2
       dest: /etc/haproxy/haproxy.cfg
     become: true
 
-  - name: Make a directory for Lua scripts
-    file:
-      path: /etc/haproxy/lua
-      state: directory
-    become: true
-
-  - name: Generate HA interpret_scope.lua script
-    template:
-      src: haproxy/lua/interpret_scope.lua.j2
-      dest: /etc/haproxy/lua/interpret_scope.lua
-    become: true
-
-  - name: Copy HA utils Lua scripts
+  - name: Copy Lua scripts
     copy:
       src: "haproxy/{{ item }}"
       dest: "/etc/haproxy/{{ item }}"
     loop:
       - services.json
-      - lua/services.lua
-      - lua/json.lua
-      - lua/inspect.lua
+      - lua/
     become: true
 
-  - name: Configure HA $LUA_PATH to find Lua scripts
+  - name: Configure $CONFIG and $LUA_PATH for HA service
+    # - $CONFIG contains the link of HA conf file
+    # - $LUA_PATH contains the link of Lua scripts
     ini_file:
       path: /lib/systemd/system/haproxy.service
       section: Service
@@ -99,19 +93,19 @@
       path: "/etc/systemd/system/devstack@{{ item }}.service"
       section: Service
       option: Environment
-      value: "HTTP_PROXY=http://{{ the_conf.ip}}:8888"
+      value: "HTTP_PROXY=http://{{ current_instance.ip}}:8888"
     loop: "{{ os_services }}"
     become: true
 
   - name: "[HACK] Make OS-CLI goes through HAProxy"
     lineinfile:
       path: ~/.bashrc
-      line: 'alias openstack="HTTP_PROXY=http://{{ the_conf.ip }}:8888 openstack"'
+      line: 'alias openstack="HTTP_PROXY=http://{{ current_instance.ip }}:8888 openstack"'
       create: yes
     become: true
     become_user: stack
 
-  - name: "[HACK] Restart devstack@* services"
+  - name: Restart devstack@* services
     systemd:
       name: "devstack@{{ item }}"
       state: restarted
