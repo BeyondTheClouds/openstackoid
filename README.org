@@ -19,7 +19,7 @@ distinct areas. It removes the relying on a single control plane and
 thus, resolves network partitioning and scalability challenges in most
 cases.
 
-To get more insight, read the [[#how-it-works][how it works]] section or [[#try-it][try it]] by
+To get more insight, read the [[#how-it-works-haproxy-rules-the-flow][how it works]] section or [[#try-it][try it]] by
 yourself.
 # Also read our [[https://beyondtheclouds.github.io/blog/][blog post]]
 
@@ -27,14 +27,16 @@ yourself.
 * Table of Contents                                                  :TOC@2@gh:
 - [[#try-it][Try it]]
 - [[#limitation][Limitation]]
-- [[#how-it-works][How it works]]
+- [[#how-it-works-haproxy-rules-the-flow][How it works: HAProxy rules the flow]]
   - [[#generating-the-haproxy-configuration-file][Generating the HAProxy configuration file]]
   - [[#scope-should-follow-the-workflow][Scope should follow the workflow]]
 - [[#setup][Setup]]
-  - [[#openstack-deployment-with-devstack][OpenStack deployment with Devstack]]
-  - [[#scope-interpretation][Scope interpretation]]
+  - [[#provisioning-openstack-with-devstack][Provisioning OpenStack with Devstack]]
+  - [[#provisioning-the-scope-interpretation][Provisioning the scope interpretation]]
 - [[#list-of-todos][List of TODOs]]
+- [[#project-structure][Project structure]]
 - [[#misc][Misc]]
+  - [[#see-openstack-cli-log][See OpenStack CLI log]]
   - [[#see-haproxy-log][See HAProxy log]]
 - [[#acknowledgment][Acknowledgment]]
 
@@ -118,14 +120,17 @@ stack@InstanceTwo:~$ openstack image list
 🎉
 
 * TODO Limitation
+  :PROPERTIES:
+  :CUSTOM_ID: limitation
+  :END:
 - Same project id
 - Same keystone credential
 - Resource of another instance should be accessible from the first one
   (e.g., image is OK, network is NOK).
 
-* How it works
+* How it works: HAProxy rules the flow
   :PROPERTIES:
-  :CUSTOM_ID: how-it-works
+  :CUSTOM_ID: how-it-works-haproxy-rules-the-flow
   :END:
 In brief, every OpenStack instance comes with a proxy (here HAProxy)
 in front of it. In such deployment, a service (e.g., Glance API of
@@ -275,7 +280,7 @@ starts and configures the ~InstanceOne~.
 
 : vagrant up InstanceOne
 
-** OpenStack deployment with Devstack
+** Provisioning OpenStack with Devstack
 A ~vagrant up <InstanceName>~ on its first run automatically deploys
 OpenStack with Devstack and then configures it for the ~--os-scope~.
 It is also possible to only run the deployment of Devstack with the
@@ -295,7 +300,7 @@ If something goes wrong during the execution of this playbook, this is
 OK to rerun the ~vagrant provision <InstanceName> --provision-with
 devstack~, since the Ansible is idempotent.
 
-** Scope interpretation
+** Provisioning the scope interpretation
 In the same manner of the previous section, it is also possible to
 only run the configurations of one OpenStack instance to interpret the
 ~--os-scope~ with the next command.
@@ -326,7 +331,34 @@ marked with the ~[HACK]~ tag should be removed.
 * List of TODOs
 - [ ] Remove the [[https://github.com/BeyondTheClouds/openstackoid/blob/665bb991f3b5a2b47f2b1073cab1e6ae4ea1d339/playbooks/haproxy/lua/interpret_scope.lua.j2#L23][forced link to Keystone of InstanceOne]].
 
+* Project structure
+#+begin_example
+.
+├── playbooks                     List of provisioning playbooks
+│   ├── devstack.yml              - Devstack provisioning
+│   ├── haproxy                   - HAProxy conf file for OpenStackoid
+│   └── ha-scope.yml              - OpenStackoid provisioning
+├── python-openstackoidclient     OpenStackoid CLI plugin
+│   ├── openstackoidclient
+│   │   ├── client.py
+│   │   └── __init__.py
+│   └── setup.py
+├── setup-env.sh                  Tmux setup script
+└── Vagrantfile                   Vagrant conf that setups the 2 OS
+#+end_example
+
 * Misc
+** See OpenStack CLI log
+Run a command with ~--debug~
+: openstack image list --debug --os-scope '{"image": "InstanceTwo"}'
+
+And somewhere in the debug output, you should see something like the
+following that shows the value of the actual computed scope and how
+this one is piggybacked with the keystone token.
+#+begin_example
+Piggyback os-scope ...
+#+end_example
+
 ** See HAProxy log
 Run HAProxy from the terminal
 : sudo systemctl stop haproxy
