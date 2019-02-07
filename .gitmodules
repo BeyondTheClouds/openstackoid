@@ -1,0 +1,4 @@
+[submodule "keystonemiddleware"]
+	path = keystonemiddleware
+	url = git@github.com:BeyondTheClouds/keystonemiddleware.git
+	branch = openstackoid/rocky

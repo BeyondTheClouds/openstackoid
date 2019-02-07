@@ -39,7 +39,7 @@
       editable: true
     with_items:
       - file:///vagrant/python-openstackoidclient
-      # - TODO: git+https://github.com/Beyondtheclouds/keystonemiddleware.git@openstackoid/rocky#egg=keystonemiddleware
+      - file:///vagrant/keystonemiddleware
     become: true
 
 # ------------------------------------------------------------------------

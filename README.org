@@ -44,7 +44,7 @@ yourself.
   :CUSTOM_ID: try-it
   :END:
 Get the code with a git clone.
-: git clone git@github.com:BeyondTheClouds/openstackoid.git -b stable/rocky --depth 1
+: git clone --recurse-submodules git@github.com:BeyondTheClouds/openstackoid.git -b stable/rocky --depth 1
 
 Then starts the two OpenStack instances (require tmux v2 and Vagrant
 v2.2 -- if you don't want to use tmux, refer to the [[#setup][setup]] section).
@@ -346,15 +346,14 @@ with the ~[HACK]~ tag should be removed.
 * Project structure
 #+begin_example
 .
+├── keystonemiddleware@...        Fork of k-middleware
+│   └── ...
 ├── playbooks                     List of provisioning playbooks
 │   ├── devstack.yml              - Devstack provisioning
 │   ├── os-scope.yml              - OpenStackoïd provisioning
 │   └── haproxy                   - HAProxy conf files for OpenStackoïd
 ├── python-openstackoidclient     OpenStackoïd CLI plugin
-│   ├── openstackoidclient
-│   │   ├── client.py
-│   │   └── __init__.py
-│   └── setup.py
+│   └── ...
 ├── setup-env.sh                  Tmux setup script
 └── Vagrantfile                   Vagrant conf that setups the 2 OS
 #+end_example
