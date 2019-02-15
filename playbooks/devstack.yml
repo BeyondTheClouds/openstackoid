@@ -28,6 +28,7 @@
     with_items:
       - ipython
       - ipdb
+      - mycli
       - tox
       - virtualenv
     become: true

@@ -38,23 +38,22 @@ listen http-proxy-{{ loop.index }}
   {# [HACK] Ensure Host is named as the frontend. This is unnecessary
    # for real HAProxy deployment since there is no redirection with
    # the $HTTP_PROXY environment variable. -#}
-  acl is_neutron  hdr(host) -m str 10.0.2.15:9696
-  acl not_neutron hdr(host) -m str 10.0.2.15
-  http-request set-header Host {{ current_instance.ip }}:8888 if not_neutron
+  acl is_neutron hdr(host) -m str 10.0.2.15:9696
+  acl is_local   hdr(host) -m str 10.0.2.15
+  http-request set-header Host {{ current_instance.ip }}:8888 if is_local
   http-request set-header Host {{ current_instance.ip }}:9696 if is_neutron
   {# [HACK] END -#}
   http-request del-header X-Forwarded-Proto if { ssl_fc }
   # Note: the default session timeout is 4s for lua script execution.
   # https://cbonte.github.io/haproxy-dconv/1.8/configuration.html#3.2-tune.lua.session-timeout
   use_backend %[lua.interpret_scope("{{ current_instance.name }}")]
-  # If no `use_backend` rule has been matched
-  default_backend transparent
 
 {% endfor %}
 
 # Request will be forwarded to the same IP address as the one from the
 # client connection
 backend transparent
+  # XXX add `http-request set-header Host` to the correct value
   server transp "*"
 
 # Backend named and configured after the `services.js` file

@@ -24,9 +24,7 @@ local function get_scope(headers, current_region)
   -- Initialize to default scope
   local scope = {
     ["compute"]   = current_region,
-    -- XXX: Remove this
-    -- ["identity"]  = current_region,
-    ["identity"]  = "InstanceOne",
+    ["identity"]  = current_region,
     ["image"]     = current_region,
     ["network"]   = current_region,
     ["placement"] = current_region
@@ -89,17 +87,36 @@ local function interpret_scope(txn, current_region)
   local headers = txn.http:req_get_headers()
   core.log(core.info, 'receive req: '..inspect(url))
 
-  -- Get the current service
-  local current_service = services.lookup_by_reg_url(current_region, url)
+  -- Get the service of the `url`
+  local service = services.lookup_by_url(url)
+  local targeted_service_type = service["Service Type"]
+  local targeted_interface = service["Interface"]
+
+  if not service then
+    -- If the current request do not target a service, then use the
+    -- transparent backend.
+    core.log(core.info, 'Use transparent backend')
+    return 'transparent'
+  elseif service['Region'] ~= current_region then
+    -- If the service is in a different instance than the actual
+    -- HAProxy (i.e., the request is already forged to target a
+    -- service from another instance) thus do not bother to lookup
+    -- into scope -- this is the case in keystone-middleware for
+    -- instance.
+    local targeted_region = service["Region"]
+    local backend_name =
+      targeted_region .."_".. targeted_service_type .."_".. targeted_interface
+
+    core.log(core.info, 'backend name: '..inspect(backend_name))
+    return backend_name
+  end
 
   -- Find the scope and targeted region
   local scope = get_scope(headers, current_region)
-  local targeted_region = scope[current_service["Service Type"]]
+  local targeted_region = scope[service["Service Type"]]
   core.log(core.info, 'targeted region: '..inspect(targeted_region))
 
   -- Compute the backend name
-  local targeted_service_type = current_service["Service Type"]
-  local targeted_interface = current_service["Interface"]
   local backend_name =
     targeted_region .."_".. targeted_service_type .."_".. targeted_interface
   core.log(core.info, 'backend name: '..inspect(backend_name))
@@ -115,9 +132,10 @@ local function interpret_scope(txn, current_region)
     return service["Service Type"] == "identity"
       and service["Interface"] == "admin"
   end
-  local id_service = services.lookup(scope["identity"], is_admin_identity)
-  txn.http:req_set_header("X-Identity-Region", id_service["Region"])
-  txn.http:req_set_header("X-Identity-Url",    id_service["URL"])
+  local id_service = services.lookup_by_reg(scope["identity"], is_admin_identity)
+  txn.http:req_set_header("X-Identity-Instance", id_service["Region"])
+  -- FIXME: find the proper protocol (e.g., http, https) instead of hardcoding it
+  txn.http:req_set_header("X-Identity-Url", "http://"..id_service["URL"])
 
   return backend_name
 end

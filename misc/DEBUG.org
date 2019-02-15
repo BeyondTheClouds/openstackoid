@@ -1,0 +1,19 @@
+#+TITLE: DEBUG info
+
+* See OpenStack CLI log
+Run a command with ~--debug~
+: openstack image list --debug --os-scope '{"image": "InstanceTwo"}'
+
+And somewhere in the debug output, you should see something like the
+following that shows the value of the actual computed scope and how
+this one is piggybacked with the keystone token.
+#+begin_example
+Piggyback os-scope ...
+#+end_example
+
+* See HAProxy log
+Run HAProxy from the terminal
+: sudo systemctl stop haproxy
+: sudo vim +9 /etc/haproxy/haproxy.cfg # comment chroot and daemon line
+: sudo LUA_PATH="/etc/haproxy/lua/?.lua;" haproxy -f /etc/haproxy/haproxy.cfg
+: http_proxy="http://${HOST_IP}:8888" curl http://10.0.2.15:9696/v2.0/networks

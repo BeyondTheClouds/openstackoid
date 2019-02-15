@@ -34,9 +34,6 @@ yourself.
   - [[#provisioning-the-scope-interpretation][Provisioning the scope interpretation]]
 - [[#list-of-todos][List of TODOs]]
 - [[#project-structure][Project structure]]
-- [[#misc][Misc]]
-  - [[#see-openstack-cli-log][See OpenStack CLI log]]
-  - [[#see-haproxy-log][See HAProxy log]]
 - [[#acknowledgment][Acknowledgment]]
 
 * Try it
@@ -94,7 +91,7 @@ services.
 #+begin_example
 stack@InstanceOne:~$ openstack server create my-vm \
   --os-scope '{"image": "InstanceTwo"}' \
-  --image 45da7b62-163c-4c78-aac7-363cbf4627a4 \
+  --image 12d5ca08-712c-4fae-9e89-f277ed7fb59a \
   --flavor m1.tiny \
   --wait
 +-------------------------------------+-----------------------------------------------------------------+
@@ -123,7 +120,7 @@ stack@InstanceTwo:~$ openstack image list
   :PROPERTIES:
   :CUSTOM_ID: limitation
   :END:
-- Same project id
+- Same project, domain id for non-public resources
 - Same keystone credential
 - Resource of another instance should be accessible from the first one
   (e.g., image is OK, network is NOK).
@@ -357,25 +354,6 @@ with the ~[HACK]~ tag should be removed.
 ├── setup-env.sh                  Tmux setup script
 └── Vagrantfile                   Vagrant conf that setups the 2 OS
 #+end_example
-
-* Misc
-** See OpenStack CLI log
-Run a command with ~--debug~
-: openstack image list --debug --os-scope '{"image": "InstanceTwo"}'
-
-And somewhere in the debug output, you should see something like the
-following that shows the value of the actual computed scope and how
-this one is piggybacked with the keystone token.
-#+begin_example
-Piggyback os-scope ...
-#+end_example
-
-** See HAProxy log
-Run HAProxy from the terminal
-: sudo systemctl stop haproxy
-: sudo vim +6 /etc/haproxy/haproxy.cfg # comment chroot and daemon line
-: sudo LUA_PATH="/etc/haproxy/lua/?.lua;" haproxy -f /etc/haproxy/haproxy.cfg
-: http_proxy="http://${HOST_IP}:8888" curl http://10.0.2.15:9696/v2.0/networks
 
 * Acknowledgment
 We would like to thanks members of the OpenStack community, and

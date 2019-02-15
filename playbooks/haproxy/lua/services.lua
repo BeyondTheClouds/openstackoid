@@ -9,12 +9,19 @@
 --
 -- This module contains the list of services (i.e., Service Type,
 -- Interface, Region and URL) of each OpenStack instances. And,
--- provides function to lookup services depending on the Region name.
+-- provides function to lookup services.
 --
 -- Provides:
--- * services.lookup(reg, p):
---   Returns the first service of region `reg` that satifies the
---   predicate p.
+-- * services.lookup(p):
+--   Returns the first service that satisfies the predicate p.
+--
+-- * services.lookup_by_reg(p):
+--   Returns the first service of region `reg` that satisfies
+--   the predicate p.
+--
+-- * services.lookup_by_url(url):
+--   Returns the first service whose the service["URL"]
+--   matches `url`.
 --
 -- * services.lookup_by_reg_url(reg, url):
 --   Returns the first service of region `reg` whose the
@@ -51,11 +58,10 @@ end
 -- @param filename json file with a list of json objects containing
 -- the "Region", "Service Type", "Interface" and "URL" fields.
 -- @return a list of services indexed region name.
-local function services_per_regions(filename)
-  local json_regions = json_file(filename)
+local function services_per_regions(services)
   local regions = {}
 
-  for _, entry in ipairs(json_regions["services"]) do
+  for _, entry in ipairs(services) do
     if regions[entry["Region"]] == nil then
       regions[entry["Region"]] = {}
     end
@@ -67,16 +73,51 @@ local function services_per_regions(filename)
 end
 
 -- List of all OpenStack services (i.e, "Service Type", "URL",
--- "Interface" and "Region") indexed by the "Region".
+-- "Interface" and "Region").
 --
--- Regions ADT:
--- regions := { RegionName: Service ... , ... }
+-- service ADT
+-- services := [ Service ... ]
 -- Service := { "URL": str,
 --              "Service Type": str,
 --              "Region": RegionName,
 --              "Interface": str
 --            }
-local regions = services_per_regions("/etc/haproxy/services.json")
+local _services = json_file("/etc/haproxy/services.json")["services"]
+
+-- List of all OpenStack services (i.e, "Service Type", "URL",
+-- "Interface" and "Region") indexed by the "Region".
+--
+-- Regions ADT:
+-- regions := { RegionName: Service ... , ... }
+local regions = services_per_regions(_services)
+
+-- Lookup for a service based on a predicate `p`.
+--
+-- @param p a predicate Service -> Bool
+-- @return a Service object.
+function services.lookup(p)
+  for _, service in pairs(_services) do
+    if p(service) then
+      core.log(core.info,'lookup_service: '..inspect(service))
+      return service
+    end
+  end
+
+  core.log(core.err, 'Cannot find service by predicate '..inspect(p))
+
+  return nil
+end
+
+-- Lookup for a service based on a specific URL `url`.
+--
+-- @return a Service object.
+function services.lookup_by_url(url)
+  local function starts_with_url(service)
+    return starts_with(url, service["URL"])
+  end
+
+  return services.lookup(starts_with_url)
+end
 
 -- Lookup for a service based on a specific region `reg`
 -- and predicate `p` on a service.
@@ -84,7 +125,7 @@ local regions = services_per_regions("/etc/haproxy/services.json")
 -- @param reg the region name
 -- @param p a predicate Service -> Bool
 -- @return a Service object.
-function services.lookup(reg, p)
+function services.lookup_by_reg(reg, p)
   local region = regions[reg]
 
   if region then
@@ -114,7 +155,7 @@ function services.lookup_by_reg_url(reg, url)
     return starts_with(url, service["URL"])
   end
 
-  return services.lookup(reg, starts_with_url)
+  return services.lookup_by_reg(reg, starts_with_url)
 end
 
 return services
