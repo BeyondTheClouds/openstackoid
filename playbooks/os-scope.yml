@@ -33,120 +33,97 @@
       file: haproxy/services.json
     run_once: True
 
-#   - name: Install OS-CLI plugin and patched K-middleware to interpret the scope
-#     pip:
-#       name: "{{item}}"
-#       editable: true
-#     with_items:
-#       - file:///vagrant/python-openstackoidclient
-#       - file:///vagrant/keystonemiddleware
-#     become: true
+  - name: Install OS-CLI plugin and patched K-middleware to interpret the scope
+    pip:
+      name: "{{item}}"
+      editable: true
+    with_items:
+      - file:///vagrant/python-openstackoidclient
+      - file:///vagrant/keystonemiddleware
+    become: true
 
-# # ------------------------------------------------------------------------
-# # -- HAProxy with Scope interpretation
+# ------------------------------------------------------------------------
+# -- HAProxy with Scope interpretation
 
-#   - name: Make a directory for HAProxy
-#     file:
-#       path: /etc/haproxy
-#       state: directory
-#     become: true
+  - name: Make a directory for HAProxy
+    file:
+      path: /etc/haproxy
+      state: directory
+    become: true
 
-#   - name: Render HAProxy configuration file (haproxy.cfg)
-#     template:
-#       src: haproxy/haproxy.cfg.j2
-#       dest: /etc/haproxy/haproxy.cfg
-#     become: true
+  - name: Render HAProxy configuration file (haproxy.cfg)
+    template:
+      src: haproxy/haproxy.cfg.j2
+      dest: /etc/haproxy/haproxy.cfg
+    become: true
 
-#   - name: Copy Lua scripts
-#     copy:
-#       src: "haproxy/{{ item }}"
-#       dest: "/etc/haproxy/{{ item }}"
-#     loop:
-#       - services.json
-#       - lua/
-#     become: true
+  - name: Copy Lua scripts
+    copy:
+      src: "haproxy/{{ item }}"
+      dest: "/etc/haproxy/{{ item }}"
+    loop:
+      - services.json
+      - lua/
+    become: true
 
-#   - name: Configure $CONFIG and $LUA_PATH for HA service
-#     # - $CONFIG contains the link of HA conf file
-#     # - $LUA_PATH contains the link of Lua scripts
-#     ini_file:
-#       path: /lib/systemd/system/haproxy.service
-#       section: Service
-#       option: Environment
-#       value: >
-#         CONFIG=/etc/haproxy/haproxy.cfg
-#         LUA_PATH=/etc/haproxy/lua/?.lua;
-#     become: true
+  - name: Configure $CONFIG and $LUA_PATH for HA service
+    # - $CONFIG contains the link of HA conf file
+    # - $LUA_PATH contains the link of Lua scripts
+    ini_file:
+      path: /lib/systemd/system/haproxy.service
+      section: Service
+      option: Environment
+      value: >
+        CONFIG=/etc/haproxy/haproxy.cfg
+        LUA_PATH=/etc/haproxy/lua/?.lua;
+    become: true
 
-#   - name: Restart HA
-#     systemd:
-#       name: haproxy
-#       state: restarted
-#       daemon_reload: yes
-#     become: true
+  - name: Restart HA
+    systemd:
+      name: haproxy
+      state: restarted
+      daemon_reload: yes
+    become: true
 
-# # ------------------------------------------------------------------------
-# # -- [HACK] Wriggle out of no HA support in Desvtack
+# ------------------------------------------------------------------------
+# -- [HACK] Wriggle out of no HA support in Desvtack
 
-#   - name: "[HACK] Update devstack@* services to go through HAProxy"
-#     ini_file:
-#       path: "/etc/systemd/system/devstack@{{ item }}.service"
-#       section: Service
-#       option: Environment
-#       value: "HTTP_PROXY=http://{{ current_instance.ip}}:8888"
-#     loop: "{{ os_services }}"
-#     become: true
+  - name: "[HACK] Update devstack@* services to go through HAProxy"
+    ini_file:
+      path: "/etc/systemd/system/devstack@{{ item }}.service"
+      section: Service
+      option: Environment
+      value: "HTTP_PROXY=http://{{ current_instance.ip}}:8888"
+    loop: "{{ os_services }}"
+    become: true
 
-#   - name: "[HACK] Make OS-CLI goes through HAProxy"
-#     lineinfile:
-#       path: ~/.bashrc
-#       line: 'alias openstack="HTTP_PROXY=http://{{ current_instance.ip }}:8888 openstack"'
-#       create: yes
-#     become: true
-#     become_user: stack
+  - name: "[HACK] Make OS-CLI goes through Keystone Frontend"
+    lineinfile:
+      path: ~/.bashrc
+      line: >
+        export OS_AUTH_URL="http://{{ current_instance.ip }}:8888/identity"
+      create: yes
+    become: true
+    become_user: stack
 
   # Rewrite this with the haproxy/services.json
   - name: "[HACK] Add HAProxy frontend as endpoint"
-    shell: |
-      . ~/devstack/openrc admin admin
-
-      alias openstack="HTTP_PROXY=http://{{ current_instance.ip }}:8888 openstack"
-
-      (openstack endpoint list --service placement --interface public |fgrep \
-       'http://{{ current_instance.ip }}:8888/placement') || \
-       openstack endpoint create --region {{ current_instance.name }} placement public 'http://{{ current_instance.ip }}:8888/placement'
-
-      (openstack endpoint list --service nova_legacy --interface public |fgrep \
-        'http://{{ current_instance.ip }}:8888/compute/v2/$(project_id)s') || \
-        openstack endpoint create --region {{ current_instance.name }} nova_legacy public 'http://{{ current_instance.ip }}:8888/compute/v2/$(project_id)s'
-
-      (openstack endpoint list --service nova --interface public |fgrep \
-        'http://{{ current_instance.ip }}:8888/compute/v2.1') || \
-        openstack endpoint create --region {{ current_instance.name }} nova public 'http://{{ current_instance.ip }}:8888/compute/v2.1'
-
-      (openstack endpoint list --service keystone --interface public |fgrep \
-        'http://{{ current_instance.ip }}:8888/identity') || \
-        openstack endpoint create --region {{ current_instance.name }} keystone public 'http://{{ current_instance.ip }}:8888/identity'
-
-      (openstack endpoint list --service keystone --interface admin |fgrep \
-        'http://{{ current_instance.ip }}:8888/identity') || \
-        openstack endpoint create --region {{ current_instance.name }} keystone admin 'http://{{ current_instance.ip }}:8888/identity'
-
-      (openstack endpoint list --service neutron --interface public |fgrep \
-        'http://{{ current_instance.ip }}:9696/') || \
-        openstack endpoint create --region {{ current_instance.name }} neutron public 'http://{{ current_instance.ip }}:9696/'
-
-      (openstack endpoint list --service glance --interface public |fgrep \
-        'http://{{ current_instance.ip }}:8888/image') || \
-        openstack endpoint create --region {{ current_instance.name }} glance public 'http://{{ current_instance.ip }}:8888/image'
-
-      for ep in $(openstack endpoint list -c ID -c URL -f value | fgrep 'http://10.0.2.15' | awk '{print $1}'); do
-        openstack endpoint delete "$ep";
-      done
-    args:
-      executable: /bin/bash
-    become: true
-    become_user: stack
+    os_keystone_endpoint:
+      # look into /etc/openstack/clouds.yaml
+      cloud: devstack-admin
+      service: "{{ item.service }}"
+      endpoint_interface: "{{ item.endpoint }}"
+      url: "http://{{ current_instance.ip }}:{{ item.url }}"
+      region: "{{ current_instance.name }}"
+      state: present
+    loop:
+      - { service: placement,   endpoint: public, url: "8888/placement" }
+      - { service: nova_legacy, endpoint: public, url: "8888/compute/v2/$(project_id)s"}
+      - { service: nova,        endpoint: public, url: "8888/compute/v2.1"}
+      - { service: neutron,     endpoint: public, url: "9696/"}
+      - { service: glance,      endpoint: public, url: "8888/image"}
+      - { service: keystone,    endpoint: public, url: "8888/identity"}
+      - { service: keystone,    endpoint: admin,  url: "8888/identity"}
 
   - name: Restart devstack@* services
     systemd:
