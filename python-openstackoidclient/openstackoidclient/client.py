@@ -176,14 +176,17 @@ def mkeypatch_session_request(cls, method, url, **kwargs):
     # Retrieve headers of the request
     headers = kwargs.get('headers', {})
 
-    # Piggyback OS_SCOPE with X-Auth-Token
-    if 'X-Auth-Token' in headers and OS_SCOPE:
-        LOG.info("Find a os-scope %s to piggyback on token %s "
-                 % (OS_SCOPE, headers['X-Auth-Token']))
+    # Put the scope in X-Scope header
+    if OS_SCOPE:
+        LOG.info("Find a os-scope %s..." % OS_SCOPE)
         os_scope_json = json.dumps(OS_SCOPE)
         headers['X-Scope'] = os_scope_json
-        headers['X-Auth-Token'] = "%s!SCOPE!%s" % (headers['X-Auth-Token'], os_scope_json)
-        LOG.debug("Piggyback os-scope %s" % repr(headers))
+
+        # Piggyback OS_SCOPE with X-Auth-Token
+        if 'X-Auth-Token' in headers:
+            LOG.info("...to piggyback on token %s " % headers['X-Auth-Token'])
+            headers['X-Auth-Token'] = "%s!SCOPE!%s" % (headers['X-Auth-Token'], os_scope_json)
+            LOG.debug("Piggyback os-scope %s" % repr(headers))
 
     return session_request(cls, method, url, **kwargs)
 Session.request = mkeypatch_session_request

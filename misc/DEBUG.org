@@ -16,6 +16,7 @@ Run HAProxy from the terminal
 : sudo systemctl stop haproxy
 : sudo vim +9 /etc/haproxy/haproxy.cfg # comment chroot and daemon line
 : sudo LUA_PATH="/etc/haproxy/lua/?.lua;" haproxy -f /etc/haproxy/haproxy.cfg
+
 : http_proxy="http://${HOST_IP}:8888" curl http://10.0.2.15:9696/v2.0/networks
 * Starting API service out of systemctl (for pdb)
 In general, seek for ~ExecStart~ in
@@ -29,14 +30,14 @@ invocator.
 : /usr/local/bin/uwsgi --procname-prefix glance-api --ini /etc/glance/glance-uwsgi.ini --honour-stdin
 
 Or with a proxy
-: HTTP_PROXY=http://192.168.142.245:8888 /usr/local/bin/uwsgi --procname-prefix glance-api --ini /etc/glance/glance-uwsgi.ini --honour-stdin
+: HTTP_PROXY=http://${HOST_IP}:8888 /usr/local/bin/uwsgi --procname-prefix glance-api --ini /etc/glance/glance-uwsgi.ini --honour-stdin
 
 **** Nova
 : sudo systemctl stop devstack@n-api
 : /usr/local/bin/uwsgi --procname-prefix nova-api --ini /etc/nova/nova-api-uwsgi.ini --honour-stdin
 
 Or with a proxy
-: HTTP_PROXY=http://192.168.142.245:8888 /usr/local/bin/uwsgi --procname-prefix nova-api --ini /etc/nova/nova-api-uwsgi.ini --honour-stdin
+: HTTP_PROXY=http://${HOST_IP}:8888 /usr/local/bin/uwsgi --procname-prefix nova-api --ini /etc/nova/nova-api-uwsgi.ini --honour-stdin
 
 * Getting Catalog
 ** Nova image
@@ -86,6 +87,12 @@ ipdb> vars(context)
   : sed -i '128i\        import ipdb; ipdb.set_trace()' /opt/stack/nova/nova/context.py
 - l. 72 from /opt/stack/nova/nova/api/auth.py
   : sed -i '77i\        import ipdb; ipdb.set_trace()' /opt/stack/nova/nova/api/auth.py
+** Nova network
+: sed -i '413i\        import ipdb; ipdb.set_trace()' /opt/stack/nova/nova/compute/api.py
+: (ipdb)> net = network.neutronv2.api.get_client(context)
+
+- nova.service_auth.get_aut_plugin(context)
+
 * Keystonemiddleware with conf
 I don't have to make a new ~auth~, ~sess~, ... Actually I can simply
 do the following.
@@ -95,4 +102,37 @@ kls._auth = copy.copy(kls._auth)
 kls._auth.auth_url = instance_auth_url
 kls._auth._plugin.auth_url = instance_auth_url + '/v3'
 kls._session = Session(auth=auth)
+#+end_src
+
+* Update Catalog from Keystonemiddleware
+In keystonemiddleware/openstackoid.py
+#+begin_src python
+import json
+
+# List of all services of OpenStack Instances
+SERVICES = []
+with open("/etc/haproxy/services.json") as s:
+    SERVICES = json.load(s).get('services')
+
+# -- 🐒 Monky Patching 🐒
+#
+# Monkeypatch _request.set_service_catalog_headers to align catalog instance
+# with the scope. We only have to change the instance name and not the URL or
+# id since redirection to the URL of the correct instance is managed by
+# HAProxy.
+from keystonemiddleware.auth_token import _request
+
+set_service_catalog_headers = _request._AuthTokenRequest.set_service_catalog_headers
+def mkeypatch_set_service_catalog_headers(request, auth_ref):
+    scope = json.loads(request.headers.get('X-Scope', "{}"))
+    catalog = auth_ref.service_catalog.catalog
+    instance_name = request.headers.get('X-Identity-Region')
+
+    for service in catalog:
+        scoped_instance_name = scope.get(service['type'], instance_name)
+        service['endpoints'][0]['region'] = scoped_instance_name
+        service['endpoints'][0]['region_id'] = scoped_instance_name
+
+    return set_service_catalog_headers(request, auth_ref)
+_request._AuthTokenRequest.set_service_catalog_headers = mkeypatch_set_service_catalog_headers
 #+end_src

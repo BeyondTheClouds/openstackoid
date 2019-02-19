@@ -1,8 +1,18 @@
+import logging
+
 from keystoneauth1.identity import v3
 from keystoneauth1.session import Session
 from keystoneauth1.adapter import Adapter
 from keystoneclient.v3 import client
 
+logger = logging.getLogger('keystoneauth')
+logger.addHandler(logging.StreamHandler())
+logger.setLevel(logging.DEBUG)
+
+OS = { 'url': '192.168.141.245:8888', 'name': 'InstanceOne' }
+# OS = { 'url': '192.168.142.245:8888', 'name': 'InstanceTwo' }
+
+# import ipdb; ipdb.set_trace()
 auth = v3.Password(
         # Use Admin credential -- Same everywhere in this PoC!
         project_domain_id='default',
@@ -11,7 +21,7 @@ auth = v3.Password(
         password='admin',
         # The `plugin_creator` of `_create_auth_plugin` automatically add the
         # V3, but here we have to manually add it.
-        auth_url="http://192.168.142.245:8888/identity/v3",
+        auth_url="http://%s/identity/v3" % OS['url'],
         # Allow fetching a new token if the current one is going to expire
         reauthenticate=True,
         # Project scoping is mandatory to get the service catalog fill properly.
@@ -24,9 +34,9 @@ sess = Session(auth=auth)
 
 print("no auth_ref (token) %s" % auth.auth_ref)
 
-import ipdb; ipdb.set_trace()
+# import ipdb; ipdb.set_trace()
 
-# print(sess.get("http://%s/identity/v3" % URL))
+# print(sess.get("http://%s/identity/v3" % OS['url']))
 # Authenticate
 auth.get_access(sess)
 auth_ref = auth.auth_ref
@@ -40,15 +50,30 @@ print("Service catalog: %s" % auth_ref.service_catalog.catalog)
 
 print(sess.get_endpoint(service_type='identity'))
 
-# adapter = Adapter(
-#     session=sess,
-#     service_type='identity',
-#     interface='admin')
+# import ipdb; ipdb.set_trace()
+ks_adap = Adapter(
+    auth=auth,
+    session=sess,
+    service_type='identity',
+    interface='admin',
+    region_name=OS['name'])
 
-# print(adapter.get('users'))
+services = ks_adap.get('/v3/services')
+print(services.json())
 
 
+# Discover net
+net_adap = Adapter(
+    auth=auth,
+    session=sess,
+    service_type='network',
+    interface=['internal', 'public'],
+    region_name=OS['name'])
 
+net_discovery = net_adap.get('/')
+print(net_discovery.json())
+
+print(net_adap.get('/v2.0/networks').json())
 # ks = client.Client(session=sess)
 # users = ks.users.list()
 

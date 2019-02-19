@@ -15,7 +15,7 @@
     apt:
       name: "{{ item }}"
       update_cache: yes
-    with_items:
+    loop:
       - git
       - silversearcher-ag
       - sudo
@@ -25,7 +25,8 @@
   - name: Install the bare necessities (pip)
     pip:
       name: "{{ item }}"
-    with_items:
+      state: latest
+    loop:
       - ipython
       - ipdb
       - mycli
