@@ -41,7 +41,7 @@ listen http-proxy-{{ loop.index }}
   acl is_neutron hdr(host) -m str 10.0.2.15:9696
   acl is_local   hdr(host) -m str 10.0.2.15
   http-request set-header Host {{ current_instance.ip }}:8888 if is_local
-  http-request set-header Host {{ current_instance.ip }}:9696 if is_neutron
+  http-request set-header Host {{ current_instance.ip }}:9797 if is_neutron
   {# [HACK] END -#}
   http-request del-header X-Forwarded-Proto if { ssl_fc }
   # Note: the default session timeout is 4s for lua script execution.
@@ -63,7 +63,7 @@ backend {{ s.Region }}_{{ s['Service Type'] }}_{{ s.Interface }}
 {% if os_instance == current_instance %}
   # Target concrete backend
   server {{ s.Region }} {{ s.Backend }} check inter 2000 rise 2 fall 5
-{% else %}{# TODO: Ensure this is OK for Neutron #}
+{% else %}
   # Target HA of OS instance named {{ s.Region }}
   http-request set-header Host {{ s.Frontend }}
   server {{ s.Region }} {{ s.Frontend }} check inter 2000 rise 2 fall 5

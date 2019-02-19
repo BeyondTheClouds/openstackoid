@@ -52,9 +52,9 @@
     {
       "Service Type": "network",
       "Interface": "public",
-      "URL": "{{ os_instance.ip }}:9696",
+      "URL": "{{ os_instance.ip }}:9797",
       "Region": "{{ os_instance.name }}",
-      "Frontend": "{{ os_instance.ip }}:8888",
+      "Frontend": "{{ os_instance.ip }}:9797",
       "Backend": "10.0.2.15:9696"
     }{%- if not loop.last %},
 

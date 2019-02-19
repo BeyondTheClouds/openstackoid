@@ -127,7 +127,7 @@
       - { service: placement,   endpoint: public, url: "8888/placement" }
       - { service: nova_legacy, endpoint: public, url: "8888/compute/v2/$(project_id)s"}
       - { service: nova,        endpoint: public, url: "8888/compute/v2.1"}
-      - { service: neutron,     endpoint: public, url: "9696/"}
+      - { service: neutron,     endpoint: public, url: "9797/"}
       - { service: glance,      endpoint: public, url: "8888/image"}
       - { service: keystone,    endpoint: public, url: "8888/identity"}
       - { service: keystone,    endpoint: admin,  url: "8888/identity"}
