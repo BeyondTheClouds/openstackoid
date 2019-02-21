@@ -114,6 +114,8 @@ stack@CloudTwo:~$ openstack image list
 
 🎉
 
+See [[file:misc/examples.sh][misc/examples.sh]] for other examples.
+
 * TODO Limitation
   :PROPERTIES:
   :CUSTOM_ID: limitation
@@ -137,7 +139,7 @@ in front of it. In such deployment, a service (e.g., Glance API of
   that targets HAProxy. HAProxy then evaluates the request and, in
   most cases, forwards it to the Backend.
 
-Here, we add HAProxy the capability [[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/playbooks/haproxy/lua/interpret_scope.lua][to interprets]] the ~--os-scope~.
+Here, we add HAProxy the capability [[file:playbooks/haproxy/lua/interpret_scope.lua][to interprets]] the ~--os-scope~.
 Instead of forwarding the request to the local Backend, HAProxy
 determines the cloud of the targeted service from the scope and
 URL. It then forwards the request to the local Backend only if the
@@ -165,7 +167,7 @@ backend CloudTwo_image_public
 # Do the same for compute, identity, ...
 #+end_src
 
-The ~lua.interpret_scope~ line [[(lua-scope)]] is a [[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/playbooks/haproxy/lua/interpret_scope.lua][Lua script]] that
+The ~lua.interpret_scope~ line [[(lua-scope)]] is a [[file:playbooks/haproxy/lua/interpret_scope.lua][Lua script]] that
 determines the name of the backend based on the ~--os-scope '{"image":
 "CloudTwo"}~ and URL of the targeted service. From there, it
 forwards the request whether to the local Backend ~10.0.2.15~ (l.
@@ -177,7 +179,7 @@ forwards the request whether to the local Backend ~10.0.2.15~ (l.
     :CUSTOM_ID: generating-the-haproxy-configuration-file
     :END:
 Based on a short description list of all services (see lst.
-[[lst:services-desc]]), it is easy to [[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/playbooks/haproxy/haproxy.cfg.j2][generate the HAProxy configuration
+[[lst:services-desc]]), it is easy to [[file:playbooks/haproxy/haproxy.cfg.j2][generate the HAProxy configuration
 file]] automatically. The description list, on the other hand, partially
 comes with the next OpenStack command. The addresses of the Frontend
 and Backend for all services still have to be added.
@@ -253,12 +255,12 @@ TODO
   :CUSTOM_ID: setup
   :END:
 The setup is made of, but not limited to, two distinct VirtualBox VMs
-with an All-in-One OpenStack inside each. The [[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/setup-env.sh][setup-env.sh]] script
+with an All-in-One OpenStack inside each. The [[file:setup-env.sh][setup-env.sh]] script
 starts two tmux windows and runs vagrant inside each window. Vagrant
 is in charge of deploying the All-in-One OpenStack and then
 configuring OpenStack to interpret the ~--os-scope~.
 
-The [[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/Vagrantfile][Vagrantfile]] contains the description of the two All-in-One
+The [[file:Vagrantfile][Vagrantfile]] contains the description of the two All-in-One
 OpenStack at its top (see ~os_clouds~). The ~:name~ refers to the name
 of the cloud, ~:ip~ to the Frontend address (has to be accessible by
 other clouds), and ~:ssh~ to the port used by Vagrant for SSH
@@ -299,7 +301,7 @@ following commands.
 : vagrant provision <CloudName> --provision-with devstack
 
 The ~--provision-with devstack~ refers to the Ansible
-[[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/playbooks/devstack.yml][playbooks/devstack.yml]] playbook. In brief, this playbook:
+[[file:playbooks/devstack.yml][playbooks/devstack.yml]] playbook. In brief, this playbook:
 1. Adds a stack user.
 2. Clones Devstack stable/rocky.
 3. Generates a local.conf.
@@ -317,7 +319,7 @@ only run the configurations of one OpenStack cloud to interpret the
 : vagrant provision <CloudName> --provision-with os-scope
 
 The ~--provision-with os-scope~ refers to the Ansible
-[[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/playbooks/os-scope.yml][playbooks/os-scope.yml]] playbook. In brief, this playbook:
+[[file:playbooks/os-scope.yml][playbooks/os-scope.yml]] playbook. In brief, this playbook:
 1. Computes the list of services as explained in the "How it works"
    (see, [[#generating-the-haproxy-configuration-file][Generating the HAProxy configuration file]]).
 2. Uses that list to generate the HAProxy configuration file, and then
@@ -347,6 +349,9 @@ with the ~[HACK]~ tag should be removed.
 #+begin_example
 .
 ├── keystonemiddleware@...        Fork of k-middleware
+│   └── ...
+├── misc                          Miscellaneous
+│   ├── examples.sh               - OS CLI examples with the --os-scope
 │   └── ...
 ├── playbooks                     List of provisioning playbooks
 │   ├── devstack.yml              - Devstack provisioning
