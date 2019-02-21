@@ -32,7 +32,7 @@ defaults
 # *It is mandatory that two proxies with overlapping capabilities
 # (frontend/backend) have different names*. See,
 # https://cbonte.github.io/haproxy-dconv/1.8/configuration.html#4
-{% for frontend in services|selectattr('Region', 'equalto', current_instance.name)|map(attribute='Frontend')|unique %}
+{% for frontend in services|selectattr('Region', 'equalto', current_cloud.name)|map(attribute='Frontend')|unique %}
 listen http-proxy-{{ loop.index }}
   bind {{ frontend }}
   {# [HACK] Ensure Host is named as the frontend. This is unnecessary
@@ -40,13 +40,13 @@ listen http-proxy-{{ loop.index }}
    # the $HTTP_PROXY environment variable. -#}
   acl is_neutron hdr(host) -m str 10.0.2.15:9696
   acl is_local   hdr(host) -m str 10.0.2.15
-  http-request set-header Host {{ current_instance.ip }}:8888 if is_local
-  http-request set-header Host {{ current_instance.ip }}:9797 if is_neutron
+  http-request set-header Host {{ current_cloud.ip }}:8888 if is_local
+  http-request set-header Host {{ current_cloud.ip }}:9797 if is_neutron
   {# [HACK] END -#}
   http-request del-header X-Forwarded-Proto if { ssl_fc }
   # Note: the default session timeout is 4s for lua script execution.
   # https://cbonte.github.io/haproxy-dconv/1.8/configuration.html#3.2-tune.lua.session-timeout
-  use_backend %[lua.interpret_scope("{{ current_instance.name }}")]
+  use_backend %[lua.interpret_scope("{{ current_cloud.name }}")]
 
 {% endfor %}
 
@@ -57,14 +57,14 @@ backend transparent
   server transp "*"
 
 # Backend named and configured after the `services.js` file
-{% for os_instance in os_instances %}
-{% for s in services|selectattr('Region', 'equalto', os_instance.name) %}
+{% for os_cloud in os_clouds %}
+{% for s in services|selectattr('Region', 'equalto', os_cloud.name) %}
 backend {{ s.Region }}_{{ s['Service Type'] }}_{{ s.Interface }}
-{% if os_instance == current_instance %}
+{% if os_cloud == current_cloud %}
   # Target concrete backend
   server {{ s.Region }} {{ s.Backend }} check inter 2000 rise 2 fall 5
 {% else %}
-  # Target HA of OS instance named {{ s.Region }}
+  # Target HA of OS cloud named {{ s.Region }}
   http-request set-header Host {{ s.Frontend }}
   server {{ s.Region }} {{ s.Frontend }} check inter 2000 rise 2 fall 5
 {% endif %}

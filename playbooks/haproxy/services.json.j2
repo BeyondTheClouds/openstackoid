@@ -1,60 +1,60 @@
 { "services" :
   [
-    {% for os_instance in os_instances -%}
+    {% for os_cloud in os_clouds -%}
     {
       "Service Type": "identity",
       "Interface": "admin",
-      "URL": "{{ os_instance.ip }}:8888/identity",
-      "Region": "{{ os_instance.name }}",
-      "Frontend": "{{ os_instance.ip }}:8888",
+      "URL": "{{ os_cloud.ip }}:8888/identity",
+      "Region": "{{ os_cloud.name }}",
+      "Frontend": "{{ os_cloud.ip }}:8888",
       "Backend": "10.0.2.15:80"
     },
     {
       "Service Type": "identity",
       "Interface": "public",
-      "URL": "{{ os_instance.ip }}:8888/identity",
-      "Region": "{{ os_instance.name }}",
-      "Frontend": "{{ os_instance.ip }}:8888",
+      "URL": "{{ os_cloud.ip }}:8888/identity",
+      "Region": "{{ os_cloud.name }}",
+      "Frontend": "{{ os_cloud.ip }}:8888",
       "Backend": "10.0.2.15:80"
     },
     {
       "Service Type": "compute",
       "Interface": "public",
-      "URL": "{{ os_instance.ip }}:8888/compute/v2.1",
-      "Region": "{{ os_instance.name }}",
-      "Frontend": "{{ os_instance.ip }}:8888",
+      "URL": "{{ os_cloud.ip }}:8888/compute/v2.1",
+      "Region": "{{ os_cloud.name }}",
+      "Frontend": "{{ os_cloud.ip }}:8888",
       "Backend": "10.0.2.15:80"
     },
     {
       "Service Type": "compute_legacy",
       "Interface": "public",
-      "URL": "{{ os_instance.ip }}:8888/compute/v2/",
-      "Region": "{{ os_instance.name }}",
-      "Frontend": "{{ os_instance.ip }}:8888",
+      "URL": "{{ os_cloud.ip }}:8888/compute/v2/",
+      "Region": "{{ os_cloud.name }}",
+      "Frontend": "{{ os_cloud.ip }}:8888",
       "Backend": "10.0.2.15:80"
     },
     {
       "Service Type": "placement",
       "Interface": "public",
-      "URL": "{{ os_instance.ip }}:8888/placement",
-      "Region": "{{ os_instance.name }}",
-      "Frontend": "{{ os_instance.ip }}:8888",
+      "URL": "{{ os_cloud.ip }}:8888/placement",
+      "Region": "{{ os_cloud.name }}",
+      "Frontend": "{{ os_cloud.ip }}:8888",
       "Backend": "10.0.2.15:80"
     },
     {
       "Service Type": "image",
       "Interface": "public",
-      "URL": "{{ os_instance.ip }}:8888/image",
-      "Region": "{{ os_instance.name }}",
-      "Frontend": "{{ os_instance.ip }}:8888",
+      "URL": "{{ os_cloud.ip }}:8888/image",
+      "Region": "{{ os_cloud.name }}",
+      "Frontend": "{{ os_cloud.ip }}:8888",
       "Backend": "10.0.2.15:80"
     },
     {
       "Service Type": "network",
       "Interface": "public",
-      "URL": "{{ os_instance.ip }}:9797",
-      "Region": "{{ os_instance.name }}",
-      "Frontend": "{{ os_instance.ip }}:9797",
+      "URL": "{{ os_cloud.ip }}:9797",
+      "Region": "{{ os_cloud.name }}",
+      "Frontend": "{{ os_cloud.ip }}:9797",
       "Backend": "10.0.2.15:9696"
     }{%- if not loop.last %},
 

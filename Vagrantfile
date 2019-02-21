@@ -8,7 +8,7 @@
 #     /_/
 # Make your OpenStacks Collaborative
 #
-# This Vagrant file deploys two *independent* OpenStack instances. And
+# This Vagrant file deploys two *independent* OpenStack clouds. And
 # then configures them so they can interpret the `--scope` for
 # collaboration between services.
 #
@@ -18,15 +18,15 @@
 #   : vagrant provision --provision-with os-scope
 #
 
-# Configuration of OpenStack instances
-os_instances = [
+# Configuration of OpenStack clouds
+os_clouds = [
   {
-    :name => "InstanceOne",
+    :name => "CloudOne",
     :ip => "192.168.141.245",
     :ssh => 2141
   },
   {
-    :name => "InstanceTwo",
+    :name => "CloudTwo",
     :ip => "192.168.142.245",
     :ssh => 2142
   }
@@ -45,8 +45,8 @@ Vagrant.configure(2) do |config|
   end
 
   # Start OpenStacks
-  os_instances.each do |os_instance|
-    make_os config, os_instance, os_instances
+  os_clouds.each do |os_cloud|
+    make_os config, os_cloud, os_clouds
   end
 end
 
@@ -64,32 +64,32 @@ def run_ansible(vm, name, vars)
   end
 end
 
-# Make a new *independant* OpenStack instance.
+# Make a new *independant* OpenStack cloud.
 #
-# The creation of the OpenStack instance goes through two provisioning
+# The creation of the OpenStack cloud goes through two provisioning
 # phase:
 #
 # 1. --provision-with devstack :: Deploys OS with Devstack
 # 2. --provision-with os-scope :: Deploys HAProxy and set the scope
 #    interpretation.
-def make_os(config, os_instance, os_instances)
-  config.vm.define os_instance[:name] do |os|
+def make_os(config, os_cloud, os_clouds)
+  config.vm.define os_cloud[:name] do |os|
     # exit!
-    os.vm.hostname = os_instance[:name]
-    os.vm.network :private_network, ip: os_instance[:ip], auto_config: true
-    os.vm.network :forwarded_port, guest: 22, host: os_instance[:ssh], id: "ssh"
+    os.vm.hostname = os_cloud[:name]
+    os.vm.network :private_network, ip: os_cloud[:ip], auto_config: true
+    os.vm.network :forwarded_port, guest: 22, host: os_cloud[:ssh], id: "ssh"
     #os.vm.network :forwarded_port, guest: 80, host: 8881
 
     # Setup and Install devstack
     run_ansible(os.vm, "devstack", {
-        :os_name => os_instance[:name],
-        :os_ip => os_instance[:ip]
+        :os_name => os_cloud[:name],
+        :os_ip => os_cloud[:ip]
       })
 
     # Interpret the scope
     run_ansible(os.vm, "os-scope", {
-      :current_instance => os_instance,
-      :os_instances => os_instances
+      :current_cloud => os_cloud,
+      :os_clouds => os_clouds
     })
   end
 end

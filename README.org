@@ -2,17 +2,17 @@
 
 /Make your OpenStacks Collaborative/
 
-This PoC aims at making several independent OpenStack instances
+This PoC aims at making several independent OpenStack clouds
 collaborative. The main idea consists in extending the OpenStack CLI
 to define the collaboration process. A dedicated option, called
 ~--os-scope~, specifies which services (e.g., compute, image,
-identity, ...) of which OpenStack instance (e.g., InstanceOne,
-InstanceTwo, ...) an OpenStack is made of to perform the CLI request.
-For instance, the provisioning of a VM in InstanceOne with an image in
-InstanceTwo looks like as follows:
+identity, ...) of which OpenStack cloud (e.g., CloudOne, CloudTwo,
+...) an OpenStack is made of to perform the CLI request. For instance,
+the provisioning of a VM in CloudOne with an image in CloudTwo looks
+like as follows:
 
 : openstack server create my-vm --flavor m1.tiny --image cirros \
-:   --os-scope '{"compute": "InstanceOne", "image": "InstanceTwo"}'
+:   --os-scope '{"compute": "CloudOne", "image": "CloudTwo"}'
 
 This approach enables the segregation of the infrastructure into
 distinct areas. It removes the relying on a single control plane and
@@ -28,11 +28,10 @@ yourself.
 - [[#how-it-works][How it works]]
   - [[#haproxy-rules-the-flow][HAProxy rules the flow]]
   - [[#scope-should-follow-the-workflow][Scope should follow the workflow]]
-  - [[#the-special-case-of-keystone][The special case of Keystone]]
+  - [[#rest-client-instance-variable-in-keystonemiddleware][Rest client instance variable in Keystonemiddleware]]
 - [[#setup][Setup]]
   - [[#provisioning-openstack-with-devstack][Provisioning OpenStack with Devstack]]
   - [[#provisioning-the-scope-interpretation][Provisioning the scope interpretation]]
-- [[#list-of-todos][List of TODOs]]
 - [[#project-structure][Project structure]]
 - [[#acknowledgment][Acknowledgment]]
 
@@ -43,36 +42,35 @@ yourself.
 Get the code with a git clone.
 : git clone --recurse-submodules git@github.com:BeyondTheClouds/openstackoid.git -b stable/rocky --depth 1
 
-Then starts the two OpenStack instances (require tmux v2 and Vagrant
-v2.2 -- if you don't want to use tmux, refer to the [[#setup][setup]] section).
+Then starts the two OpenStack clouds (require tmux v2 and Vagrant v2.2
+-- if you don't want to use tmux, refer to the [[#setup][setup]] section).
 : cd openstackoid; ./setup-env.sh
 
 The previous command starts two tmux windows and launches two
-OpenStack instances, each in a virtual machine, thanks to Vagrant.
-After 15 to 20 minutes, the time for Devstack to deploy the two
-OpenStack instances, the output may look like the following. The top
-window connects to OpenStack ~InstanceOne~ and the bottom one to
-~InstanceTwo~. These two instances are completely independent and
-shared no services.
+OpenStack clouds, each in a virtual machine, thanks to Vagrant. After
+15 to 20 minutes, the time for Devstack to deploy the two OpenStack
+clouds, the output may look like the following. The top window
+connects to OpenStack ~CloudOne~ and the bottom one to ~CloudTwo~.
+These two clouds are completely independent and shared no services.
 
 #+begin_example
-stack@InstanceOne:~$
+stack@CloudOne:~$
 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
-stack@InstanceTwo:~$
+stack@CloudTwo:~$
 #+end_example
 
 From there you can issue a standard ~openstack~ command, such as
 ~openstack image list~. Note the difference of ~ID~.
 
 #+begin_example
-stack@InstanceOne:~$ openstack image list
+stack@CloudOne:~$ openstack image list
 +--------------------------------------+--------------------------+--------+
 | ID                                   | Name                     | Status |
 +--------------------------------------+--------------------------+--------+
 | 440263d5-20a7-432b-b0db-693787bd2579 | cirros-0.3.5-x86_64-disk | active |
 +--------------------------------------+--------------------------+--------+
 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
-stack@InstanceTwo:~$ openstack image list
+stack@CloudTwo:~$ openstack image list
 +--------------------------------------+--------------------------+--------+
 | ID                                   | Name                     | Status |
 +--------------------------------------+--------------------------+--------+
@@ -81,17 +79,17 @@ stack@InstanceTwo:~$ openstack image list
 #+end_example
 
 Moreover, you can use the ~--os-scope~ option that tells OpenStack of
-a specific instance to do something by using a service from another
-instance. For example, you can tell to the ~InstanceOne~ to start a VM
-by using the ~image~ service from ~InstanceTwo~ (the ~ID~ of ~image~
-is the one of ~InstanceTwo~). In the scope, a service is implicitly
-bound to the local instance, which prevents to explicitly specify all
-services.
+a specific cloud to do something by using a service from another
+cloud. For example, you can tell to the ~CloudOne~ to start a VM by
+using the ~image~ service from ~CloudTwo~. In the scope, a service is
+implicitly bound to the local cloud, which prevents to explicitly
+specify all services. Note the ~ID~ of ~image~ at the end that comes
+from ~CloudTwo~.
 
 #+begin_example
-stack@InstanceOne:~$ openstack server create my-vm \
-  --os-scope '{"image": "InstanceTwo"}' \
-  --image 12d5ca08-712c-4fae-9e89-f277ed7fb59a \
+stack@CloudOne:~$ openstack server create my-vm \
+  --os-scope '{"image": "CloudTwo"}' \
+  --image  cirros-0.3.5-x86_64-disk \
   --flavor m1.tiny \
   --wait
 +-------------------------------------+-----------------------------------------------------------------+
@@ -106,7 +104,7 @@ stack@InstanceOne:~$ openstack server create my-vm \
 | user_id                             | 2d9440f8a4d546c88d1f5b661dc6e69b                                |
 +-------------------------------------+-----------------------------------------------------------------+
 ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-stack@InstanceTwo:~$ openstack image list
+stack@CloudTwo:~$ openstack image list
 +--------------------------------------+--------------------------+--------+
 | ID                                   | Name                     | Status |
 +--------------------------------------+--------------------------+--------+
@@ -122,7 +120,7 @@ stack@InstanceTwo:~$ openstack image list
   :END:
 - Same project, domain id for non-public resources
 - Same keystone credential
-- Resource of another instance should be accessible from the first one
+- Resource of another cloud should be accessible from the first one
   (e.g., image is OK, network is NOK).
 
 * How it works
@@ -130,9 +128,9 @@ stack@InstanceTwo:~$ openstack image list
   :CUSTOM_ID: how-it-works
   :END:
 ** HAProxy rules the flow
-In brief, every OpenStack instance comes with a proxy (here HAProxy)
+In brief, every OpenStack cloud comes with a proxy (here HAProxy)
 in front of it. In such deployment, a service (e.g., Glance API of
-~InstanceOne~) is available via two addresses:
+~CloudOne~) is available via two addresses:
 - The /Backend/ address (i.e., ~10.0.2.15/image~) that directly
   targets Glance API.
 - The /Frontend/ address (i.e., ~192.168.141.245:8888/image~)
@@ -141,13 +139,13 @@ in front of it. In such deployment, a service (e.g., Glance API of
 
 Here, we add HAProxy the capability [[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/playbooks/haproxy/lua/interpret_scope.lua][to interprets]] the ~--os-scope~.
 Instead of forwarding the request to the local Backend, HAProxy
-determines the instance of the targeted service from the scope and
+determines the cloud of the targeted service from the scope and
 URL. It then forwards the request to the local Backend only if the
-current instance is equivalent to the determined one. Otherwise, it
-forwards the request to the Frontend of the determined instance.
+current cloud is equivalent to the determined one. Otherwise, it
+forwards the request to the Frontend of the determined cloud.
 
 As an example, here is a sample of the HAProxy configuration on
-~InstanceOne~ for the ~image~ service.
+~CloudOne~ for the ~image~ service.
 
 #+begin_src conf-space -n
 listen http-proxy
@@ -156,25 +154,28 @@ listen http-proxy
   use_backend %[lua.interpret_scope]  # (ref:lua-scope)
 
 # Target concrete backend
-backend InstanceOne_image_public
-  server InstanceOne 10.0.2.15:80 check inter 2000 rise 2 fall 5 # (ref:local-back)
+backend CloudOne_image_public
+  server CloudOne 10.0.2.15:80 check inter 2000 rise 2 fall 5 # (ref:local-back)
 
-# Target HA of OS instance named InstanceTwo
-backend InstanceTwo_image_public
+# Target HA of OS cloud named CloudTwo
+backend CloudTwo_image_public
   http-request set-header Host 192.168.141.245:8888
-  server InstanceTwo 192.168.142.245:8888 check inter 2000 rise 2 fall 5 # (ref:remote-front)
+  server CloudTwo 192.168.142.245:8888 check inter 2000 rise 2 fall 5 # (ref:remote-front)
 
 # Do the same for compute, identity, ...
 #+end_src
 
 The ~lua.interpret_scope~ line [[(lua-scope)]] is a [[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/playbooks/haproxy/lua/interpret_scope.lua][Lua script]] that
 determines the name of the backend based on the ~--os-scope '{"image":
-"InstanceTwo"}~ and URL of the targeted service. From there, it
+"CloudTwo"}~ and URL of the targeted service. From there, it
 forwards the request whether to the local Backend ~10.0.2.15~ (l.
-[[(local-back)]]) or Frontend of the remote instance ~192.168.142.245~ (l.
+[[(local-back)]]) or Frontend of the remote cloud ~192.168.142.245~ (l.
 [[(remote-front)]]).
 
 *** Generating the HAProxy configuration file
+    :PROPERTIES:
+    :CUSTOM_ID: generating-the-haproxy-configuration-file
+    :END:
 Based on a short description list of all services (see lst.
 [[lst:services-desc]]), it is easy to [[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/playbooks/haproxy/haproxy.cfg.j2][generate the HAProxy configuration
 file]] automatically. The description list, on the other hand, partially
@@ -193,7 +194,7 @@ and Backend for all services still have to be added.
       "Service Type": "image",
       "Interface": "public",
       "URL": "192.168.141.245:8888/image",
-      "Region": "InstanceOne",
+      "Region": "CloudOne",
       "Frontend": "192.168.141.245:8888",
       "Backend": "10.0.2.15:80"
     },
@@ -202,7 +203,7 @@ and Backend for all services still have to be added.
       "Service Type": "image",
       "Interface": "public",
       "URL": "192.168.142.245:8888/image",
-      "Region": "InstanceTwo",
+      "Region": "CloudTwo",
       "Frontend": "192.168.142.245:8888",
       "Backend": "10.0.2.15:80"
     },
@@ -220,7 +221,7 @@ not only be attached to the initial ~POST /servers~ request made by
 the CLI. But also, to all subsequent requests of the workflow,
 including Nova request to Keystone to check Alice credentials, Nova
 request to Glance to check/get the image. Glance request to Keystone
-to check Alice credentials ...
+to check Alice credentials ... and so on.
 
 A first solution is to modify the OpenStack code of all services to
 ensure that, e.g., when Alice contacts Nova with a specific
@@ -235,13 +236,16 @@ out that, e.g., the current request from Nova to Glance comes from a
 previous request from Alice to Nova with a specific ~--os-scope~.
 
 Luckily, every OpenStack service already propagates information from
-one service to another during the entire workflow of command: the
+one service to another during the entire workflow of a command: the
 Keystone ~X-Auth-Token~ that contains Alice credentials. Here we reuse
 that information to piggyback the ~--os-scope~. Then, HAProxy seeks
 for the ~X-Auth-Token~, extracts the scope and finally interprets it
-to forwards the request to the good instance.
+to forwards the request to the good cloud.
 
-** TODO The special case of Keystone
+** TODO Rest client instance variable in Keystonemiddleware
+   :PROPERTIES:
+   :CUSTOM_ID: rest-client-instance-variable-in-keystonemiddleware
+   :END:
 TODO
 
 * Setup
@@ -255,44 +259,44 @@ is in charge of deploying the All-in-One OpenStack and then
 configuring OpenStack to interpret the ~--os-scope~.
 
 The [[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/Vagrantfile][Vagrantfile]] contains the description of the two All-in-One
-OpenStack at its top (see ~os_instances~). The ~:name~ refers to the
-name of the instance, ~:ip~ to the Frontend address (has to be
-accessible by other instances), and ~:ssh~ to the port used by Vagrant
-for SSH connections. Doing a ~vagrant up~ reads that configuration and
-starts two Ubuntu/16.04 VMs with these characteristics. Adding a third
-entry in ~os_instances~ and running ~vagrant up~ again will start a
-third All-in-One OpenStack.
+OpenStack at its top (see ~os_clouds~). The ~:name~ refers to the name
+of the cloud, ~:ip~ to the Frontend address (has to be accessible by
+other clouds), and ~:ssh~ to the port used by Vagrant for SSH
+connections. Doing a ~vagrant up~ reads that configuration and starts
+two Ubuntu/16.04 VMs with these characteristics. Adding a third entry
+in ~os_clouds~ and running ~vagrant up~ again will start a third
+All-in-One OpenStack.
 
-#+CAPTION: Configuration of OpenStack instances
+#+CAPTION: Configuration of OpenStack clouds
 #+begin_src ruby
-os_instances = [
+os_clouds = [
   {
-    :name => "InstanceOne",
+    :name => "CloudOne",
     :ip => "192.168.141.245",
     :ssh => 2141
   },
   {
-    :name => "InstanceTwo",
+    :name => "CloudTwo",
     :ip => "192.168.142.245",
     :ssh => 2142
   }
 ]
 #+end_src
 
-It is also possible to start only one OpenStack instance by giving its
+It is also possible to start only one OpenStack cloud by giving its
 name after the ~vagrant up~. For instance, the following command only
-starts and configures the ~InstanceOne~.
+starts and configures the ~CloudOne~.
 
-: vagrant up InstanceOne
+: vagrant up CloudOne
 
 ** Provisioning OpenStack with Devstack
-A ~vagrant up <InstanceName>~ on its first run automatically deploys
+A ~vagrant up <CloudName>~, on its first run, automatically deploys
 OpenStack with Devstack and then configures it for the ~--os-scope~.
 But, it is possible to only run the deployment of Devstack with the
 following commands.
 
-: vagrant up <InstanceName> --no-provision
-: vagrant provision <InstanceName> --provision-with devstack
+: vagrant up <CloudName> --no-provision
+: vagrant provision <CloudName> --provision-with devstack
 
 The ~--provision-with devstack~ refers to the Ansible
 [[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/playbooks/devstack.yml][playbooks/devstack.yml]] playbook. In brief, this playbook:
@@ -302,15 +306,15 @@ The ~--provision-with devstack~ refers to the Ansible
 4. Runs Devstack deployment.
 
 If something goes wrong during the execution of this playbook,
-everything is OK. Simply rerun the ~vagrant provision <InstanceName>
+everything is OK. Simply rerun the ~vagrant provision <CloudName>
 --provision-with devstack~, since Ansible playbooks are idempotent.
 
 ** Provisioning the scope interpretation
 In the same manner of the previous section, it is also possible to
-only run the configurations of one OpenStack instance to interpret the
+only run the configurations of one OpenStack cloud to interpret the
 ~--os-scope~ with the next command.
 
-: vagrant provision <InstanceName> --provision-with os-scope
+: vagrant provision <CloudName> --provision-with os-scope
 
 The ~--provision-with os-scope~ refers to the Ansible
 [[https://github.com/BeyondTheClouds/openstackoid/blob/stable/rocky/playbooks/os-scope.yml][playbooks/os-scope.yml]] playbook. In brief, this playbook:
@@ -320,11 +324,13 @@ The ~--provision-with os-scope~ refers to the Ansible
    deploys HAProxy.
 3. Installs a new plugin for python-openstackclient that adds the
    ~--os-scope~ in the CLI.
-4. Ensures that HTTP requests of OpenStack services go through the
+4. Workaround the rest client instance variable in Keystonemiddleware
+   (see, [[#rest-client-instance-variable-in-keystonemiddleware][Rest client instance variable in Keystonemiddleware]]).
+5. Ensures that HTTP requests of OpenStack services go through the
    proxy (on that particular point, read the next section).
 
 If something goes wrong during the execution of this playbook,
-everything is OK. Simply rerun the ~vagrant provision <InstanceName>
+everything is OK. Simply rerun the ~vagrant provision <CloudName>
 --provision-with os-scope~, since Ansible playbooks are idempotent.
 
 *** ~[HACK]~ tag in the code
@@ -333,12 +339,9 @@ avoid the modification of Devstack -- or any other OpenStack services
 -- as much as possible. Thus, we deployed HAProxy after Devstack and
 then ensure each request to OpenStack goes through the proxy thanks to
 the ~HTTP_PROXY~ environment variable. This is referenced in the
-current code with the ~[HACK]~ tag. In a real-world deployment (a la
+current code with the ~[HACK]~ tag. In a real-world deployment (à la
 Kolla), services are already hidden behind HAProxy and code marked
 with the ~[HACK]~ tag should be removed.
-
-* List of TODOs
-- [ ] Remove the [[https://github.com/BeyondTheClouds/openstackoid/blob/665bb991f3b5a2b47f2b1073cab1e6ae4ea1d339/playbooks/haproxy/lua/interpret_scope.lua.j2#L23][forced link to Keystone of InstanceOne]].
 
 * Project structure
 #+begin_example

@@ -9,8 +9,8 @@ logger = logging.getLogger('keystoneauth')
 logger.addHandler(logging.StreamHandler())
 logger.setLevel(logging.DEBUG)
 
-OS = { 'url': '192.168.141.245:8888', 'name': 'InstanceOne' }
-# OS = { 'url': '192.168.142.245:8888', 'name': 'InstanceTwo' }
+OS = { 'url': '192.168.141.245:8888', 'name': 'CloudOne' }
+# OS = { 'url': '192.168.142.245:8888', 'name': 'CloudTwo' }
 
 # import ipdb; ipdb.set_trace()
 auth = v3.Password(

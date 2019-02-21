@@ -2,7 +2,7 @@
 
 * See OpenStack CLI log
 Run a command with ~--debug~
-: openstack image list --debug --os-scope '{"image": "InstanceTwo"}'
+: openstack image list --debug --os-scope '{"image": "CloudTwo"}'
 
 And somewhere in the debug output, you should see something like the
 following that shows the value of the actual computed scope and how
@@ -56,7 +56,7 @@ ipdb> vars(_auth._auth)
 ipdb> dict(CONF.glance)
 {'default_trusted_certificate_ids': [], 'num_retries': 0, 'service_name': None, 'max_version': None, 'cafile': None, 'certfile': None, 'collect_timing': False, 'version': None, 'service_type': 'image', 'verify_glance_signatures': False, 'insecure': False, 'region_name': None, 'min_version': None, 'allowed_direct_url_schemes': [], 'api_servers': None, 'valid_interfaces': ['internal', 'public'], 'split_loggers': False, 'enable_certificate_validation': False, 'timeout': None, 'endpoint_override': None, 'debug': False, 'keyfile': None}
 ipdb> vars(context)
-{'service_user_domain_name': None, 'service_user_id': None, 'auth_token': 'gAAAAABcZuvoHnJ22Tcc8OsD5gJ1prPlMwOK7SnCg9eZlcLV4Emtb5Wq-u3n16LlAuasmGbCQpqW9_gQQS-k5eDJ4PYXRlk6rEt8L_EyBrCWE4hhk11JtxEB0zdYzZI78xObJ9o1cxIaK5Rn03Q3Nt_PeHkgJQsDmY6Ls99l0R4AlCeMrD6gXMA', '_user_domain_id': u'default', 'resource_uuid': None, '_enginefacade_context': <oslo_db.sqlalchemy.enginefacade._TransactionContextTLocal object at 0x7fc8f1eafdb8>, 'service_project_domain_name': None, 'read_only': False, 'system_scope': None, 'service_token': None, 'service_project_name': None, 'domain_name': None, 'is_admin_project': True, 'service_user_name': None, 'user_auth_plugin': <keystonemiddleware.auth_token._user_plugin.UserAuthPlugin object at 0x7fc8f565a6d0>, 'user_name': u'admin', 'user_domain_name': u'Default', '_user_id': u'840ab0ce62b145e59ac1491af0226a09', 'project_domain_name': u'Default', 'db_connection': None, 'project_name': u'admin', 'global_request_id': None, 'service_project_id': None, 'timestamp': datetime.datetime(2019, 2, 15, 16, 42, 16, 443122), 'service_project_domain_id': None, 'remote_address': '10.0.2.15', 'quota_class': None, '_domain_id': None, 'is_admin': True, 'service_catalog': [{u'endpoints': [{u'region': u'InstanceOne', u'publicURL': u'http://10.0.2.15:9696/'}], u'type': u'network', u'name': u'neutron'}, {u'endpoints': [{u'region': u'InstanceOne', u'publicURL': u'http://10.0.2.15/image'}], u'type': u'image', u'name': u'glance'}, {u'endpoints': [{u'region': u'InstanceOne', u'publicURL': u'http://10.0.2.15/placement'}], u'type': u'placement', u'name': u'placement'}], 'service_roles': [], 'show_deleted': False, 'roles': [u'reader', u'member', u'admin'], 'service_user_domain_id': None, '_read_deleted': 'no', 'request_id': 'req-19776dc8-8076-4f9d-ba0e-b2eb6fe9f429', 'mq_connection': None, '_project_id': u'5959c6cd1c3c4561bca87f29eada00fb', '_project_domain_id': u'default'}
+{'service_user_domain_name': None, 'service_user_id': None, 'auth_token': 'gAAAAABcZuvoHnJ22Tcc8OsD5gJ1prPlMwOK7SnCg9eZlcLV4Emtb5Wq-u3n16LlAuasmGbCQpqW9_gQQS-k5eDJ4PYXRlk6rEt8L_EyBrCWE4hhk11JtxEB0zdYzZI78xObJ9o1cxIaK5Rn03Q3Nt_PeHkgJQsDmY6Ls99l0R4AlCeMrD6gXMA', '_user_domain_id': u'default', 'resource_uuid': None, '_enginefacade_context': <oslo_db.sqlalchemy.enginefacade._TransactionContextTLocal object at 0x7fc8f1eafdb8>, 'service_project_domain_name': None, 'read_only': False, 'system_scope': None, 'service_token': None, 'service_project_name': None, 'domain_name': None, 'is_admin_project': True, 'service_user_name': None, 'user_auth_plugin': <keystonemiddleware.auth_token._user_plugin.UserAuthPlugin object at 0x7fc8f565a6d0>, 'user_name': u'admin', 'user_domain_name': u'Default', '_user_id': u'840ab0ce62b145e59ac1491af0226a09', 'project_domain_name': u'Default', 'db_connection': None, 'project_name': u'admin', 'global_request_id': None, 'service_project_id': None, 'timestamp': datetime.datetime(2019, 2, 15, 16, 42, 16, 443122), 'service_project_domain_id': None, 'remote_address': '10.0.2.15', 'quota_class': None, '_domain_id': None, 'is_admin': True, 'service_catalog': [{u'endpoints': [{u'region': u'CloudOne', u'publicURL': u'http://10.0.2.15:9696/'}], u'type': u'network', u'name': u'neutron'}, {u'endpoints': [{u'region': u'CloudOne', u'publicURL': u'http://10.0.2.15/image'}], u'type': u'image', u'name': u'glance'}, {u'endpoints': [{u'region': u'CloudOne', u'publicURL': u'http://10.0.2.15/placement'}], u'type': u'placement', u'name': u'placement'}], 'service_roles': [], 'show_deleted': False, 'roles': [u'reader', u'member', u'admin'], 'service_user_domain_id': None, '_read_deleted': 'no', 'request_id': 'req-19776dc8-8076-4f9d-ba0e-b2eb6fe9f429', 'mq_connection': None, '_project_id': u'5959c6cd1c3c4561bca87f29eada00fb', '_project_domain_id': u'default'}
 #+end_example
 
 The fuck appears in
@@ -76,9 +76,9 @@ ipdb> vars(_auth._auth)
 
 #+begin_example
 ipdb> vars(context)
-{'service_user_domain_name': None, 'service_user_id': None, 'auth_token': 'gAAAAABcaK3g6MOYxR8KrPn0VPMr15bfI6q7gT5goFMjwWiHhlLbybuKgkRphrBGyTxin7mhcmVTM4XRzclF9PZ5_p1p9-qxWMGTtR-eVo9HUBYVo1RWDHhVPPvvUA-EWJVH5MVk8edI1BvQvyfBnuRQ9zC34KBtHXg_WcBVr4RwmAivkASxTus', '_user_domain_id': u'default', 'resource_uuid': None, '_enginefacade_context': <oslo_db.sqlalchemy.enginefacade._TransactionContextTLocal object at 0x7fd2d7512f58>, 'service_project_domain_name': None, 'read_only': False, 'system_scope': None, 'service_token': None, 'service_project_name': None, 'domain_name': None, 'is_admin_project': True, 'service_user_name': None, 'user_auth_plugin': <keystonemiddleware.auth_token._user_plugin.UserAuthPlugin object at 0x7fd2dacc7450>, 'user_name': u'admin', 'user_domain_name': u'Default', '_user_id': u'840ab0ce62b145e59ac1491af0226a09', 'project_domain_name': u'Default', 'db_connection': None, 'project_name': u'admin', 'global_request_id': None, 'service_project_id': None, 'timestamp': datetime.datetime(2019, 2, 17, 0, 42, 8, 997028), 'service_project_domain_id': None, 'remote_address': '10.0.2.15', 'quota_class': None, '_domain_id': None, 'is_admin': True, 'service_catalog': [{u'endpoints': [{u'region': u'InstanceOne', u'publicURL': u'http://10.0.2.15:9696/'}], u'type': u'network', u'name': u'neutron'}, {u'endpoints': [{u'region': u'InstanceOne', u'publicURL': u'http://10.0.2.15/image'}], u'type': u'image', u'name': u'glance'}, {u'endpoints': [{u'region': u'InstanceOne', u'publicURL': u'http://10.0.2.15/placement'}], u'type': u'placement', u'name': u'placement'}], 'service_roles': [], 'show_deleted': False, 'roles': [u'reader', u'member', u'admin'], 'service_user_domain_id': None, '_read_deleted': 'no', 'request_id': 'req-705f9fd1-6342-48f3-bded-727eb82f9188', 'mq_connection': None, '_project_id': u'5959c6cd1c3c4561bca87f29eada00fb', '_project_domain_id': u'default'}
+{'service_user_domain_name': None, 'service_user_id': None, 'auth_token': 'gAAAAABcaK3g6MOYxR8KrPn0VPMr15bfI6q7gT5goFMjwWiHhlLbybuKgkRphrBGyTxin7mhcmVTM4XRzclF9PZ5_p1p9-qxWMGTtR-eVo9HUBYVo1RWDHhVPPvvUA-EWJVH5MVk8edI1BvQvyfBnuRQ9zC34KBtHXg_WcBVr4RwmAivkASxTus', '_user_domain_id': u'default', 'resource_uuid': None, '_enginefacade_context': <oslo_db.sqlalchemy.enginefacade._TransactionContextTLocal object at 0x7fd2d7512f58>, 'service_project_domain_name': None, 'read_only': False, 'system_scope': None, 'service_token': None, 'service_project_name': None, 'domain_name': None, 'is_admin_project': True, 'service_user_name': None, 'user_auth_plugin': <keystonemiddleware.auth_token._user_plugin.UserAuthPlugin object at 0x7fd2dacc7450>, 'user_name': u'admin', 'user_domain_name': u'Default', '_user_id': u'840ab0ce62b145e59ac1491af0226a09', 'project_domain_name': u'Default', 'db_connection': None, 'project_name': u'admin', 'global_request_id': None, 'service_project_id': None, 'timestamp': datetime.datetime(2019, 2, 17, 0, 42, 8, 997028), 'service_project_domain_id': None, 'remote_address': '10.0.2.15', 'quota_class': None, '_domain_id': None, 'is_admin': True, 'service_catalog': [{u'endpoints': [{u'region': u'CloudOne', u'publicURL': u'http://10.0.2.15:9696/'}], u'type': u'network', u'name': u'neutron'}, {u'endpoints': [{u'region': u'CloudOne', u'publicURL': u'http://10.0.2.15/image'}], u'type': u'image', u'name': u'glance'}, {u'endpoints': [{u'region': u'CloudOne', u'publicURL': u'http://10.0.2.15/placement'}], u'type': u'placement', u'name': u'placement'}], 'service_roles': [], 'show_deleted': False, 'roles': [u'reader', u'member', u'admin'], 'service_user_domain_id': None, '_read_deleted': 'no', 'request_id': 'req-705f9fd1-6342-48f3-bded-727eb82f9188', 'mq_connection': None, '_project_id': u'5959c6cd1c3c4561bca87f29eada00fb', '_project_domain_id': u'default'}
 
-{'service_user_domain_name': None, 'service_user_id': None, 'auth_token': 'gAAAAABcaKziqY3yUekTI7kaxkt3qjBgIrN9esNmpjnfgnyeNoifT4ZQQOxxTyLvoLo7nr6_G_TgEEJGIsCNlB0uJe23UgXRo0shXVvjrKVsQf0M27fc1UlKX-8xycUMw3TiOwKUbb6You6hBLA9zbNqPp32UjsDBxqLX4dP94Mj7HxA5EVxnfA!SCOPE!{"placement": "InstanceTwo", "network": "InstanceTwo", "image": "InstanceTwo", "compute": "InstanceTwo", "identity": "InstanceTwo"}', '_user_domain_id': u'default', 'resource_uuid': None, '_enginefacade_context': <oslo_db.sqlalchemy.enginefacade._TransactionContextTLocal object at 0x7f321c7b7870>, 'service_project_domain_name': None, 'read_only': False, 'system_scope': None, 'service_token': None, 'service_project_name': None, 'domain_name': None, 'is_admin_project': True, 'service_user_name': None, 'user_auth_plugin': <keystonemiddleware.auth_token._user_plugin.UserAuthPlugin object at 0x7f321ed46710>, 'user_name': u'admin', 'user_domain_name': u'Default', '_user_id': u'79e8979976f144b7b5f9072437eea480', 'project_domain_name': u'Default', 'db_connection': None, 'project_name': u'admin', 'global_request_id': None, 'service_project_id': None, 'timestamp': datetime.datetime(2019, 2, 17, 0, 37, 56, 582482), 'service_project_domain_id': None, 'remote_address': '10.0.2.15', 'quota_class': None, '_domain_id': None, 'is_admin': True, 'service_catalog': [], 'service_roles': [], 'show_deleted': False, 'roles': [u'reader', u'member', u'admin'], 'service_user_domain_id': None, '_read_deleted': 'no', 'request_id': 'req-0ab2e450-e88c-45f1-ab3f-39fe10d01132', 'mq_connection': None, '_project_id': u'09f2ca7f181b4f78a131bb030f84475c', '_project_domain_id': u'default'}
+{'service_user_domain_name': None, 'service_user_id': None, 'auth_token': 'gAAAAABcaKziqY3yUekTI7kaxkt3qjBgIrN9esNmpjnfgnyeNoifT4ZQQOxxTyLvoLo7nr6_G_TgEEJGIsCNlB0uJe23UgXRo0shXVvjrKVsQf0M27fc1UlKX-8xycUMw3TiOwKUbb6You6hBLA9zbNqPp32UjsDBxqLX4dP94Mj7HxA5EVxnfA!SCOPE!{"placement": "CloudTwo", "network": "CloudTwo", "image": "CloudTwo", "compute": "CloudTwo", "identity": "CloudTwo"}', '_user_domain_id': u'default', 'resource_uuid': None, '_enginefacade_context': <oslo_db.sqlalchemy.enginefacade._TransactionContextTLocal object at 0x7f321c7b7870>, 'service_project_domain_name': None, 'read_only': False, 'system_scope': None, 'service_token': None, 'service_project_name': None, 'domain_name': None, 'is_admin_project': True, 'service_user_name': None, 'user_auth_plugin': <keystonemiddleware.auth_token._user_plugin.UserAuthPlugin object at 0x7f321ed46710>, 'user_name': u'admin', 'user_domain_name': u'Default', '_user_id': u'79e8979976f144b7b5f9072437eea480', 'project_domain_name': u'Default', 'db_connection': None, 'project_name': u'admin', 'global_request_id': None, 'service_project_id': None, 'timestamp': datetime.datetime(2019, 2, 17, 0, 37, 56, 582482), 'service_project_domain_id': None, 'remote_address': '10.0.2.15', 'quota_class': None, '_domain_id': None, 'is_admin': True, 'service_catalog': [], 'service_roles': [], 'show_deleted': False, 'roles': [u'reader', u'member', u'admin'], 'service_user_domain_id': None, '_read_deleted': 'no', 'request_id': 'req-0ab2e450-e88c-45f1-ab3f-39fe10d01132', 'mq_connection': None, '_project_id': u'09f2ca7f181b4f78a131bb030f84475c', '_project_domain_id': u'default'}
 
 #+end_example
 
@@ -99,26 +99,37 @@ do the following.
 
 #+begin_src python
 kls._auth = copy.copy(kls._auth)
-kls._auth.auth_url = instance_auth_url
-kls._auth._plugin.auth_url = instance_auth_url + '/v3'
+kls._auth.auth_url = cloud_auth_url
+kls._auth._plugin.auth_url = cloud_auth_url + '/v3'
 kls._session = Session(auth=auth)
 #+end_src
 
 * Update Catalog from Keystonemiddleware
-In keystonemiddleware/openstackoid.py
+Instead of relying on HAProxy, another solution that fits well with
+OpenStack, is modifying the service catalog returned by a scoped
+token.
+
+All rest clients in the OpenStack code use that catalog to determine
+the address of the service they wanna contact. By giving a catalog
+that is in conformance with the scope, OpenStack should do the
+collaboration by itself.
+
+Here is how we can update the service catalog when receiving a request
+on keystonemiddleware. In ~keystonemiddleware/openstackoid.py~ do
+
 #+begin_src python
 import json
 
-# List of all services of OpenStack Instances
+# List of all services of OpenStack Clouds
 SERVICES = []
 with open("/etc/haproxy/services.json") as s:
     SERVICES = json.load(s).get('services')
 
 # -- 🐒 Monky Patching 🐒
 #
-# Monkeypatch _request.set_service_catalog_headers to align catalog instance
-# with the scope. We only have to change the instance name and not the URL or
-# id since redirection to the URL of the correct instance is managed by
+# Monkeypatch _request.set_service_catalog_headers to align catalog cloud
+# with the scope. We only have to change the cloud name and not the URL or
+# id since redirection to the URL of the correct cloud is managed by
 # HAProxy.
 from keystonemiddleware.auth_token import _request
 
@@ -126,12 +137,12 @@ set_service_catalog_headers = _request._AuthTokenRequest.set_service_catalog_hea
 def mkeypatch_set_service_catalog_headers(request, auth_ref):
     scope = json.loads(request.headers.get('X-Scope', "{}"))
     catalog = auth_ref.service_catalog.catalog
-    instance_name = request.headers.get('X-Identity-Region')
+    cloud_name = request.headers.get('X-Identity-Region')
 
     for service in catalog:
-        scoped_instance_name = scope.get(service['type'], instance_name)
-        service['endpoints'][0]['region'] = scoped_instance_name
-        service['endpoints'][0]['region_id'] = scoped_instance_name
+        scoped_cloud_name = scope.get(service['type'], cloud_name)
+        service['endpoints'][0]['region'] = scoped_cloud_name
+        service['endpoints'][0]['region_id'] = scoped_cloud_name
 
     return set_service_catalog_headers(request, auth_ref)
 _request._AuthTokenRequest.set_service_catalog_headers = mkeypatch_set_service_catalog_headers

@@ -146,7 +146,7 @@ def mkeypatch_initialize_app(cls, argv):
     # XXX(rcherrueau): We remove the `os_scope` from the list of command
     # options (i.e., `cls.options`). We have to do so because of openstack
     # config loader [1] that strips the `os_` prefix of all options [2] and
-    # deduces a specific configuration for the current instance. Unfortunately,
+    # deduces a specific configuration for the current cloud. Unfortunately,
     # `os_scope` becomes `scope` and hence gives a value to the `scope`
     # reserved keyword (I don't know which service exactly uses that keyword,
     # maybe policy from keystone [3]).

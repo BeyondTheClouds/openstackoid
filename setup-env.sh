@@ -7,16 +7,16 @@
 # Make your OpenStacks Collaborative
 #
 # Setup a tmux with two windows and starts the two OpenStack
-# instances in each windows.
+# clouds in each windows.
 
 tmux new-session -d -s "$TMUX_NAME" "exec /bin/bash"
 tmux rename-window 'OpenStacks'
-tmux send-keys 'vagrant up InstanceOne' 'C-m'
-tmux send-keys 'vagrant ssh InstanceOne' 'C-m'
+tmux send-keys 'vagrant up CloudOne' 'C-m'
+tmux send-keys 'vagrant ssh CloudOne' 'C-m'
 tmux select-window -t "$TMUX_NAME:0"
 
-# Setup InstanceTwo
+# Setup CloudTwo
 tmux split-window -v "exec /bin/bash"
-tmux send-keys 'vagrant up InstanceTwo' 'C-m'
-tmux send-keys 'vagrant ssh InstanceTwo' 'C-m'
+tmux send-keys 'vagrant up CloudTwo' 'C-m'
+tmux send-keys 'vagrant ssh CloudTwo' 'C-m'
 tmux -2 attach-session -t "$TMUX_NAME"

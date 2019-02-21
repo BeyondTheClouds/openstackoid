@@ -8,7 +8,7 @@
 -- Module for OpenStack services.
 --
 -- This module contains the list of services (i.e., Service Type,
--- Interface, Region and URL) of each OpenStack instances. And,
+-- Interface, Region and URL) of each OpenStack clouds. And,
 -- provides function to lookup services.
 --
 -- Provides:

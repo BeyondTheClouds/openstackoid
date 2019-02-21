@@ -100,7 +100,7 @@
       path: "/etc/systemd/system/devstack@{{ item }}.service"
       section: Service
       option: Environment
-      value: "HTTP_PROXY=http://{{ current_instance.ip}}:8888"
+      value: "HTTP_PROXY=http://{{ current_cloud.ip}}:8888"
     loop: "{{ os_services }}"
     become: true
 
@@ -108,7 +108,7 @@
     lineinfile:
       path: ~/.bashrc
       line: >
-        export OS_AUTH_URL="http://{{ current_instance.ip }}:8888/identity"
+        export OS_AUTH_URL="http://{{ current_cloud.ip }}:8888/identity"
       create: yes
     become: true
     become_user: stack
@@ -120,8 +120,8 @@
       cloud: devstack-admin
       service: "{{ item.service }}"
       endpoint_interface: "{{ item.endpoint }}"
-      url: "http://{{ current_instance.ip }}:{{ item.url }}"
-      region: "{{ current_instance.name }}"
+      url: "http://{{ current_cloud.ip }}:{{ item.url }}"
+      region: "{{ current_cloud.name }}"
       state: present
     loop:
       - { service: placement,   endpoint: public, url: "8888/placement" }

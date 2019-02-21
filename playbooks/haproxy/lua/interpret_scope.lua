@@ -98,9 +98,9 @@ local function interpret_scope(txn, current_region)
     core.log(core.info, 'Use transparent backend')
     return 'transparent'
   elseif service['Region'] ~= current_region then
-    -- If the service is in a different instance than the actual
+    -- If the service is in a different cloud than the actual
     -- HAProxy (i.e., the request is already forged to target a
-    -- service from another instance) thus do not bother to lookup
+    -- service from another cloud) thus do not bother to lookup
     -- into scope -- this is the case in keystone-middleware for
     -- instance.
     local targeted_region = service["Region"]
@@ -133,7 +133,7 @@ local function interpret_scope(txn, current_region)
       and service["Interface"] == "admin"
   end
   local id_service = services.lookup_by_reg(scope["identity"], is_admin_identity)
-  txn.http:req_set_header("X-Identity-Instance", id_service["Region"])
+  txn.http:req_set_header("X-Identity-Cloud", id_service["Region"])
   -- FIXME: find the proper protocol (e.g., http, https) instead of hardcoding it
   txn.http:req_set_header("X-Identity-Url", "http://"..id_service["URL"])
 
