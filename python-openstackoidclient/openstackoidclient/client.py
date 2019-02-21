@@ -10,7 +10,7 @@
 # - https://docs.openstack.org/python-openstackclient/latest/contributor/plugins.html
 
 """
-OpenStackClient plugin for OpenStackoid.
+OpenStackClient plugin for OpenStackoïd.
 
 Adds `--os-scope` global parameter:
 --os-scope '{
@@ -105,7 +105,7 @@ def _get_default_os_scope():
     }
 
 
-# -- 🐒 Monky Patching 🐒
+# -- 🐒 Monkey Patching 🐒
 OS_SCOPE = None
 
 # 1. Monkeypatch OpenStackShell.initialize_app to retrieve the scope value
