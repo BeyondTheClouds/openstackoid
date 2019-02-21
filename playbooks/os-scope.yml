@@ -42,12 +42,39 @@
       - file:///vagrant/keystonemiddleware
     become: true
 
-  # TODO: document that
-  - name: Patch keystoneauth1 for not filtering on endpoints region
+  # The `endpoint_data_for` method [1] of keystoneauth1 fetches
+  # endpoint data from the service catalog. This method may filter
+  # endpoints based on the region name. Thus, when a service such a
+  # Nova wanna contact Neutron, it uses that method to look into the
+  # catalog and only keep endpoints of Neutron in the same region
+  # (see, nova.network.neutronV2.api.get_client [2]).
+  #
+  # However with OpenStackoïd, the Identity server of the current
+  # composition may be in a different region than Nova. This is the
+  # case when Alice start a VM with the following scope:
+  #
+  #   openstack server create ... --os-scope '{"identity": "CloudOne", "nova": "CloudTwo"}'
+  #
+  # In this case, Keystone will return a scoped-token with a catalog
+  # made of endpoints in CloudOne. Hence, when Nova try to get the
+  # list of endpoints of its region, it fails with the error message:
+  #
+  #   ['internal', 'public'] endpoint for network service in CloudTwo region not found
+  #
+  # With OpenStackoïd, the notion of regions doesn't really make sense
+  # since we permit collaboration between multiple regions. This
+  # monkey patch removes the region filtering when a service seeks for
+  # an endpoint in the service catalog.
+  #
+  # Refs:
+  # [1] https://github.com/openstack/keystoneauth/blob/8505f37124bb21f41e346a571057c8133f9ca4d5/keystoneauth1/access/service_catalog.py#L402
+  # [2] https://github.com/openstack/nova/blob/3310c3cbf534f5d75477ed206a8fb68eb53c6c10/nova/network/neutronv2/api.py#L203
+  - name: Patch keystoneauth1 for not filtering catalog endpoints on region name
     command: sed -i '430s/region_name=region_name/region_name=None/' service_catalog.py
     args:
       chdir: /usr/local/lib/python2.7/dist-packages/keystoneauth1/access/
     become: true
+    warn: false
 
 # ------------------------------------------------------------------------
 # -- HAProxy with Scope interpretation
@@ -113,10 +140,9 @@
     become: true
     become_user: stack
 
-  # TODO: Rewrite this with the haproxy/services.json
   - name: "[HACK] Add HAProxy frontend as endpoint"
     os_keystone_endpoint:
-      # look into /etc/openstack/clouds.yaml
+      # Look for `devstack-admin` in /etc/openstack/clouds.yaml
       cloud: devstack-admin
       service: "{{ item.service }}"
       endpoint_interface: "{{ item.endpoint }}"
