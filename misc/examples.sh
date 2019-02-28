@@ -7,13 +7,15 @@ CLOUD2="CloudTwo"
 
 if [ "$OS_REGION_NAME" == "$CLOUD1" ]
 then
+    CLOUD="$CLOUD1"
     DUOLC="$CLOUD2"
 else
+    CLOUD="$CLOUD2"
     DUOLC="$CLOUD1"
 fi
 
-echo "-- Current Cloud is $OS_REGION_NAME"
-echo "-- Second Cloud is $DUOLC"
+echo "'$CLOUD' is your current cloud"
+echo "'$DUOLC' is your second cloud"
 
 # `help set'
 set -o errexit
@@ -46,7 +48,9 @@ openstack server list
 openstack server delete my-vm
 
 # Start of a VM in another Cloud
-# XXX: network is not set properly
+#
+# XXX: network is not set properly, maybe because their is no net in
+# $DUOLC with the project id of $CLOUD.
 openstack server create my-vm \
           --os-scope '{"compute": "'$DUOLC'", "network": "'$DUOLC'", "placement": "'$DUOLC'"}' \
           --flavor m1.tiny \
