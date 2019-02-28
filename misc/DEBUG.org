@@ -18,6 +18,7 @@ Run HAProxy from the terminal
 : sudo LUA_PATH="/etc/haproxy/lua/?.lua;" haproxy -f /etc/haproxy/haproxy.cfg
 
 : http_proxy="http://${HOST_IP}:8888" curl http://10.0.2.15:9696/v2.0/networks
+
 * Starting API service out of systemctl (for pdb)
 In general, seek for ~ExecStart~ in
 ~/etc/systemd/system/devstack@<<service>>.service~. If this is a uWSGI
@@ -146,4 +147,82 @@ def mkeypatch_set_service_catalog_headers(request, auth_ref):
 
     return set_service_catalog_headers(request, auth_ref)
 _request._AuthTokenRequest.set_service_catalog_headers = mkeypatch_set_service_catalog_headers
+#+end_src
+
+* TODO Use Keystone in CloudOne and start a VM in CloudOne
+The following command runs an ~openstack server create~ that uses
+Identity of CloudOne and does all the job on CloudTwo. It is really
+important to do it as a member and not admin since admin can use
+networks of all projects.
+
+#+begin_src bash
+OS_SCOPE=' { "identity":  "CloudOne"'`
+         `', "placement": "CloudTwo"'`
+         `', "image":     "CloudTwo"'`
+         `', "compute":   "CloudTwo"'`
+         `', "network":   "CloudTwo"'`
+         `'}'
+
+openstack server create my-vm \
+          --os-scope "$OS_SCOPE" \
+          --flavor m1.tiny \
+          --image cirros-0.3.5-x86_64-disk \
+          --network private \
+          --wait
+#+end_src
+
+At the end, the VM boot failed with
+
+#+begin_example
+Unexpected API Error. Please report this at http://bugs.launchpad.net/nova/ and attach the Nova API log if possible.
+<class 'neutronclient.common.exceptions.NetworkNotFoundClient'> (HTTP 500) (Request-ID: req-1494adce-73dc-42bf-a021-d4a4ebb36a13)
+#+end_example
+
+A reason could be the ~project-id~. A ~project-id~ binds every
+OpenStack resource in such a manner that Alice can only access private
+resources of her ~project-id~. And here, Alice comes with
+~project-id@CloudOne~ from /Identity@CloudOne/ and asks
+/Compute@CloudTwo/ to get a network on /Compute@CloudTwo/.
+
+
+# A ~virsh console~ tells me the VM comes without NIC.
+#
+# #+begin_src bash
+# stack@CloudTwo$ virsh console \
+#   $(openstack server show my-vm \
+#               --os-scope "$OS_SCOPE" \
+#               --c "OS-EXT-SRV-ATTR:instance_name" \
+#               -f value)
+# $ ip a
+# 1: lo: <LOOPBACK,UP,LOWER_UP> mtu 16436 qdisc noqueue
+#     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+#     inet 127.0.0.1/8 scope host lo
+#     inet6 ::1/128 scope host
+#        valid_lft forever preferred_lft forever
+# #+end_src
+
+Now, what happens if I first create a Network with the correct
+~project-id~?
+
+#+begin_src bash
+openstack network create private-with-pid@CloudOne \
+          --os-scope "$OS_SCOPE" \
+          --provider-network-type vxlan
+
+openstack subnet create private-subnet-with-pid@CloudOne \
+          --os-scope "$OS_SCOPE" \
+          --network private \
+          --subnet-range 10.0.0.0/24 --gateway 10.0.0.1 \
+          --ip-version 4
+#+end_src
+
+And then redo the starts command, but with this network?
+
+#+begin_src bash
+openstack server create my-vm \
+          --os-scope "$OS_SCOPE" \
+          --flavor m1.tiny \
+          --netwok private-with-pid@CloudOne \
+          --image cirros-0.3.5-x86_64-disk \
+          --wait
 #+end_src
