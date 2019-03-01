@@ -120,6 +120,7 @@ openstack server create my-vm \
           --wait
 
 # Start a VM on CLOUD with placement in DUOLC.
+# FIXME
 openstack server create my-vm \
           --os-scope '{"placement": "'$DUOLC'"}' \
           --flavor m1.tiny \

@@ -68,7 +68,7 @@ local function services_per_regions(services)
     table.insert(regions[entry["Region"]], entry)
   end
 
-  core.log(core.info,'regions: '..inspect(regions))
+  -- core.log(core.info,'regions: '..inspect(regions))
   return regions
 end
 
@@ -98,7 +98,7 @@ local regions = services_per_regions(_services)
 function services.lookup(p)
   for _, service in pairs(_services) do
     if p(service) then
-      core.log(core.info,'lookup_service: '..inspect(service))
+      -- core.log(core.info,'lookup_service: '..inspect(service))
       return service
     end
   end
@@ -131,7 +131,7 @@ function services.lookup_by_reg(reg, p)
   if region then
     for _, service in pairs(region) do
       if p(service) then
-        core.log(core.info,'lookup_service: '..inspect(service))
+        -- core.log(core.info,'lookup_service: '..inspect(service))
         return service
       end
     end
