@@ -13,6 +13,7 @@ import logging
 
 # Expose OidInterpreter
 from .oidinterpreter import (Service, OidInterpreter, get_oidinterpreter,
+                             get_oidinterpreter_from_services,
                              oss2services, SCOPE_DELIM)
 
 

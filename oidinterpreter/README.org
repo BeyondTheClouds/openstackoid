@@ -1,0 +1,27 @@
+Example usage
+
+#+begin_src python :tangle example.py
+from requests import Request, Session
+from oidinterpreter import Service, get_oidinterpreter_from_services
+
+qwant = Service(
+    service_type='Search Engine', cloud='Instance1',
+    url='https://www.qwant.com/')
+ddg = Service(
+    service_type='Search Engine', cloud='Instance2',
+    url='https://www.duckduckgo.com/')
+
+headers = {'X-Scope': '{"Search Engine": "Instance1"}'}
+req = Request('GET', f'{ddg.url}?q=openstackoid', headers)
+s = Session()
+
+
+# Send a request to DuckDuckGo
+print(s.send(req.prepare()).url)
+
+# Interprets the Scope that says "use rather `Search Engine` in Instance1"
+# and transforms DuckDuckGo into Qwant
+oidi = get_oidinterpreter_from_services([qwant, ddg])
+oidi.interpret(req)
+print(s.send(req.prepare()).url)
+#+end_src

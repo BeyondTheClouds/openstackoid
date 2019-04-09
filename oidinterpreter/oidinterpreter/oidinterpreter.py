@@ -28,10 +28,10 @@ SCOPE_INTERPRETERS = {}
 
 @dataclass
 class Service:
-    interface: str
-    cloud: str
     service_type: str
+    cloud: str
     url: str
+    interface: str = None
 
 
 def oss2services(oss: List[Dict[str, str]]) -> List[Service]:
@@ -44,8 +44,10 @@ def oss2services(oss: List[Dict[str, str]]) -> List[Service]:
 
     And then transformed into a python Dict with `json.load`.
     """
-    return [Service(
-                s["Interface"], s["Region"], s["Service Type"], s["URL"])
+    return [Service(service_type=s["Service Type"],
+                    cloud=s["Region"],
+                    url=s["URL"],
+                    interface=s["Interface"])
             for s in oss]
 
 
@@ -149,24 +151,31 @@ class OidInterpreter:
                 s.service_type == targeted_service_type and
                 s.cloud == targeted_cloud)
 
-        # HACK: Find the identity service. This part is used later to add
-        # helpful headers to tweak the keystone middleware
-        id_service = self.lookup_service(
-            lambda s:
-                s.interface == 'admin' and
-                s.service_type == 'identity' and
-                s.cloud == scope['identity'])
-
         # Update request
-        req.url = targeted_service.url                   # Change url
+        req.url = req.url.replace(
+            service.url, targeted_service.url) # Change url
         self.clean_token_header(req, 'X-Subject-Token')  # Remove scope
         if targeted_service_type == 'identity':          # from token
             self.clean_token_header(req, 'X-Auth-Token')
-        req.headers.update({                             # Extra header for
-            'X-Identity-Cloud': id_service.cloud,        # k-middleware
-            'X-Identity-Url': id_service.url,
+        req.headers.update({
             'X-Scope': json.dumps(scope),
         })
+
+        # HACK: Find the identity service. This part is used later to add
+        # helpful headers to tweak the keystone middleware
+        try:
+            id_service = self.lookup_service(
+                lambda s:
+                    s.interface == 'admin' and
+                    s.service_type == 'identity' and
+                    s.cloud == scope['identity'])
+
+            req.headers.update({
+                'X-Identity-Cloud': id_service.cloud,
+                'X-Identity-Url': id_service.url,
+            })
+        except StopIteration:
+            pass
 
     def iinterpret(self, req: Request) -> Request:
         "Immutable version of `interpret`."
@@ -198,3 +207,12 @@ def get_oidinterpreter(services_uri: str) -> OidInterpreter:
 
     # Instantiate & serialize the OidInterpreter
     return SCOPE_INTERPRETERS.setdefault(uri, OidInterpreter(services))
+
+
+def get_oidinterpreter_from_services(
+       services: List[Service]) -> OidInterpreter:
+    """Factory method that instantiates a new OidInterpreter from a list of
+service.
+
+    """
+    return OidInterpreter(services)
