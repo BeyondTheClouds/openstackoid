@@ -44,14 +44,15 @@ SERVICES = [{'Interface': 'admin', 'Region': 'CloudOne',
 
 
 class TestInterpreter(TestCase):
-    def setUp(self) -> None:
+    @classmethod
+    def setUpClass(cls) -> None:
         the_services = oss2services(SERVICES)
-        self.the_oidi = OidInterpreter(the_services)
-        self.the_i1service = the_services[0]  # Identity@CloudOne
-        self.the_i2service = the_services[3]  # Identity@CloudTwo
-        self.the_c1service = the_services[2]  # Compute@CloudOne
-        self.the_c2service = the_services[5]  # Compute@CloudTwo
-        self.the_token = '507582fc-57c6-4bc7-a051-9fb3f269da70'
+        cls.the_oidi = OidInterpreter(the_services)
+        cls.the_i1service = the_services[0]  # Identity@CloudOne
+        cls.the_i2service = the_services[3]  # Identity@CloudTwo
+        cls.the_c1service = the_services[2]  # Compute@CloudOne
+        cls.the_c2service = the_services[5]  # Compute@CloudTwo
+        cls.the_token = '507582fc-57c6-4bc7-a051-9fb3f269da70'
 
     def test_lookup_service(self):
         # Lookup `the_c2service` by interface, service_type, region
