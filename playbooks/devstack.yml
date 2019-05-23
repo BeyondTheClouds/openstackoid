@@ -57,22 +57,29 @@
       create: yes
     become: true
 
-  - name: Always connect as stack user
-    blockinfile:
-      name: ~/.bashrc
-      state: present
-      block: |
-        sudo su stack
+  - name: Create src directory
+    file:
+      path: /opt/src
+      state: directory
+      owner: stack
+      group: stack
 
-  - name: Source OS env at stack connection
-    blockinfile:
-      name: ~/.bashrc
-      state: present
-      block: |
-        . /opt/stack/devstack/openrc admin admin
-        cd ~
-    become: true
-    become_user: stack
+#    - name: Always connect as stack user
+#      blockinfile:
+#        name: ~/.bashrc
+#        state: present
+#        block: |
+#        sudo su stack
+#
+#  - name: Source OS env at stack connection
+#    blockinfile:
+#      name: ~/.bashrc
+#      state: present
+#      block: |
+#        . /opt/stack/devstack/openrc admin admin
+#        cd ~
+#    become: true
+#    become_user: stack
 
   - name: Clone Devstack in /opt/stack/devstack
     git:
@@ -105,6 +112,9 @@
         KEYSTONE_REGION_NAME={{ os_name }}
 
         LIBS_FROM_GIT=keystoneauth
+        GITDIR["keystoneauth"]=/opt/src/keystoneauth
+
+        USE_PYTHON3=True
         # OSLODB_REPO=https://github.com/BeyondTheClouds/oslo.db
         # OSLODB_BRANCH=cockroachdb/pike
 
