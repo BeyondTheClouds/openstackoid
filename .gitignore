@@ -1,4 +1,5 @@
+.mypy_cache
+.python-version
 .vagrant
-playbooks/haproxy/services.json
+__pycache__
 playbooks/*.retry
-
