@@ -22,26 +22,32 @@
 os_clouds = [
   {
     :name => "CloudOne",
-    :ip => "192.168.141.245",
-    :ssh => 2141
+    :ip => "192.168.144.247",
+    :ssh => 2147
   },
   {
     :name => "CloudTwo",
-    :ip => "192.168.142.245",
-    :ssh => 2142
+    :ip => "192.168.144.248",
+    :ssh => 2148
   }
 ]
 
 Vagrant.configure(2) do |config|
-  config.vm.box = "bento/ubuntu-16.04"
+  config.vm.box = "generic/ubuntu1804"
 
-  # Configuration for VirtualBox
-  config.vm.provider :virtualbox do |vb, override|
-    vb.cpus = 6
-    vb.memory = 6144
-    override.vm.synced_folder "./", "/vagrant",
+# Configuration for libvirt
+  config.vm.provider :libvirt do |lv, override|
+    lv.cpus = 2
+    lv.memory = 8192
+    lv.nested = true
+    override.vm.synced_folder ".", "/vagrant",
                               owner: "vagrant",
                               group: "vagrant"
+
+    override.vm.synced_folder "/opt/opendev/keystoneauth",
+                              "/opt/stack/keystoneauth",
+                              owner: "stack",
+                              group: "stack"
   end
 
   # Start OpenStacks

@@ -20,6 +20,8 @@
       - silversearcher-ag
       - sudo
       - vim
+      - qemu-utils
+      - emacs
     become: true
 
   - name: Install the bare necessities (pip)
@@ -27,11 +29,13 @@
       name: "{{ item }}"
       state: latest
     loop:
+      - pip
       - ipython
       - ipdb
       - mycli
       - tox
       - virtualenv
+      - httpie
     become: true
 
 # ------------------------------------------------------------------------
@@ -72,8 +76,8 @@
 
   - name: Clone Devstack in /opt/stack/devstack
     git:
-      repo: https://git.openstack.org/openstack-dev/devstack
-      version: stable/rocky
+      repo: https://opendev.org/openstack/devstack
+      version: stable/stein
       dest: /opt/stack/devstack
       force: yes
       update: no
@@ -93,13 +97,14 @@
         RABBIT_PASSWORD=$ADMIN_PASSWORD
         SERVICE_PASSWORD=$ADMIN_PASSWORD
         LIBVIRT_TYPE=qemu
+        IP_VERSION=4
+        ENABLE_IDENTITY_V2=False
         HOST_IP={{ os_ip }}
-        SERVICE_HOST=10.0.2.15
-
+        SERVICE_HOST=$HOST_IP
         REGION_NAME={{ os_name }}
         KEYSTONE_REGION_NAME={{ os_name }}
 
-        # LIBS_FROM_GIT=oslo.db
+        LIBS_FROM_GIT=keystoneauth
         # OSLODB_REPO=https://github.com/BeyondTheClouds/oslo.db
         # OSLODB_BRANCH=cockroachdb/pike
 
@@ -112,7 +117,7 @@
 
         # enable_plugin rally https://github.com/openstack/rally master
 
-        #enable_plugin osprofiler https://github.com/openstack/osprofiler stable/rocky
+        #enable_plugin osprofiler https://github.com/openstack/osprofiler stable/train
         #OSPROFILER_COLLECTOR=redis
 
         # [[post-config|$NOVA_CONF]]
