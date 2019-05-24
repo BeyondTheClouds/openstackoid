@@ -44,10 +44,6 @@ Vagrant.configure(2) do |config|
                               owner: "vagrant",
                               group: "vagrant"
 
-    override.vm.synced_folder "src/",
-                              "/opt/src/",
-                              owner: "stack",
-                              group: "stack"
   end
 
   # Start OpenStacks

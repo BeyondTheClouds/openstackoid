@@ -57,13 +57,6 @@
       create: yes
     become: true
 
-  - name: Create src directory
-    file:
-      path: /opt/src
-      state: directory
-      owner: stack
-      group: stack
-
 #    - name: Always connect as stack user
 #      blockinfile:
 #        name: ~/.bashrc
@@ -112,7 +105,8 @@
         KEYSTONE_REGION_NAME={{ os_name }}
 
         LIBS_FROM_GIT=keystoneauth
-        GITDIR["keystoneauth"]=/opt/src/keystoneauth
+        KEYSTONEAUTH_REPO=https://github.com/BeyondTheClouds/keystoneauth.git
+        KEYSTONEAUTH_BRANCH=stable/stein
 
         USE_PYTHON3=True
         # OSLODB_REPO=https://github.com/BeyondTheClouds/oslo.db
@@ -141,6 +135,7 @@
         enabled = False
     become: true
     become_user: stack
+
 
 # ------------------------------------------------------------------------
 # -- Better log
