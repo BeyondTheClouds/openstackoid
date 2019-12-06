@@ -1,0 +1,241 @@
+#+TITLE: DEBUG info
+
+* See OpenStack CLI log
+Run a command with ~--debug~
+: openstack image list --debug --os-scope '{"image": "CloudTwo"}'
+
+And somewhere in the debug output, you should see something like the
+following that shows the value of the actual computed scope and how
+this one is piggybacked with the keystone token.
+#+begin_example
+Piggyback os-scope ...
+#+end_example
+
+* See HAProxy log
+Run HAProxy from the terminal
+: sudo systemctl stop haproxy
+: sudo vim +9 /etc/haproxy/haproxy.cfg # comment chroot and daemon line
+: sudo LUA_PATH="/etc/haproxy/lua/?.lua;" haproxy -f /etc/haproxy/haproxy.cfg
+
+: http_proxy="http://${HOST_IP}:8888" curl http://10.0.2.15:9696/v2.0/networks
+
+* Starting API service out of systemctl (for pdb)
+In general, seek for ~ExecStart~ in
+~/etc/systemd/system/devstack@<<service>>.service~. If this is a uWSGI
+service, note that uWSGI closes the stdin (and remaps it to
+~/dev/null~). Hence, you should add ~--honour-stdin~ in the uwsgi CLI
+invocator.
+
+**** Glance
+: sudo systemctl stop devstack@g-api
+: /usr/local/bin/uwsgi --procname-prefix glance-api --ini /etc/glance/glance-uwsgi.ini --honour-stdin
+
+Or with a proxy
+: HTTP_PROXY=http://${HOST_IP}:8888 /usr/local/bin/uwsgi --procname-prefix glance-api --ini /etc/glance/glance-uwsgi.ini --honour-stdin
+
+**** Nova
+: sudo systemctl stop devstack@n-api
+: /usr/local/bin/uwsgi --procname-prefix nova-api --ini /etc/nova/nova-api-uwsgi.ini --honour-stdin
+
+Or with a proxy
+: HTTP_PROXY=http://${HOST_IP}:8888 /usr/local/bin/uwsgi --procname-prefix nova-api --ini /etc/nova/nova-api-uwsgi.ini --honour-stdin
+
+* Getting Catalog
+** Nova image
+vim +736 /opt/stack/nova/nova/compute/api.py
+: sed -i '736i\        import ipdb; ipdb.set_trace()' /opt/stack/nova/nova/compute/api.py
+
+Then restart n-api and do
+: (ipdb)> (_sess, _auth) = image.glance._session_and_auth(context)
+
+*** Normal execution
+#+begin_example
+ipdb> vars(_auth)
+{'service': None, 'reauthenticate': False, '_auth': <keystoneauth1.identity.generic.password.Password object at 0x7fd2da6a6590>, '_discovery_cache': {}, '_lock': <thread.lock object at 0x7fd2d9bf8f90>, 'auth_ref': None, '_session': <keystoneauth1.session.Session object at 0x7fd2da0bba90>, 'auth_url': None, 'user': <keystoneauth1.access.access.AccessInfoV3 object at 0x7fd2d9b84990>}
+ipdb> vars(_auth._auth)
+{'_trust_id': None, '_plugin': <keystoneauth1.identity.v3.password.Password object at 0x7fd2d9b5fd10>, '_username': 'nova', '_user_domain_name': 'Default', '_project_domain_name': 'Default', 'reauthenticate': True, '_default_domain_name': None, '_system_scope': None, '_discovery_cache': {'http://10.0.2.15/identity': <keystoneauth1.discover.Discover object at 0x7fd2d99d9710>}, '_lock': <thread.lock object at 0x7fd2da09bc10>, 'auth_ref': <keystoneauth1.access.access.AccessInfoV3 object at 0x7fd2dcf46cd0>, '_project_name': 'service', '_domain_id': None, '_user_domain_id': None, 'auth_url': 'http://10.0.2.15/identity', '_password': 'admin', '_project_id': None, '_domain_name': None, '_project_domain_id': None, '_user_id': None, '_default_domain_id': None}
+ipdb> dict(CONF.glance)
+{'default_trusted_certificate_ids': [], 'num_retries': 0, 'service_name': None, 'max_version': None, 'cafile': None, 'certfile': None, 'collect_timing': False, 'version': None, 'service_type': 'image', 'verify_glance_signatures': False, 'insecure': False, 'region_name': None, 'min_version': None, 'allowed_direct_url_schemes': [], 'api_servers': None, 'valid_interfaces': ['internal', 'public'], 'split_loggers': False, 'enable_certificate_validation': False, 'timeout': None, 'endpoint_override': None, 'debug': False, 'keyfile': None}
+ipdb> vars(context)
+{'service_user_domain_name': None, 'service_user_id': None, 'auth_token': 'gAAAAABcZuvoHnJ22Tcc8OsD5gJ1prPlMwOK7SnCg9eZlcLV4Emtb5Wq-u3n16LlAuasmGbCQpqW9_gQQS-k5eDJ4PYXRlk6rEt8L_EyBrCWE4hhk11JtxEB0zdYzZI78xObJ9o1cxIaK5Rn03Q3Nt_PeHkgJQsDmY6Ls99l0R4AlCeMrD6gXMA', '_user_domain_id': u'default', 'resource_uuid': None, '_enginefacade_context': <oslo_db.sqlalchemy.enginefacade._TransactionContextTLocal object at 0x7fc8f1eafdb8>, 'service_project_domain_name': None, 'read_only': False, 'system_scope': None, 'service_token': None, 'service_project_name': None, 'domain_name': None, 'is_admin_project': True, 'service_user_name': None, 'user_auth_plugin': <keystonemiddleware.auth_token._user_plugin.UserAuthPlugin object at 0x7fc8f565a6d0>, 'user_name': u'admin', 'user_domain_name': u'Default', '_user_id': u'840ab0ce62b145e59ac1491af0226a09', 'project_domain_name': u'Default', 'db_connection': None, 'project_name': u'admin', 'global_request_id': None, 'service_project_id': None, 'timestamp': datetime.datetime(2019, 2, 15, 16, 42, 16, 443122), 'service_project_domain_id': None, 'remote_address': '10.0.2.15', 'quota_class': None, '_domain_id': None, 'is_admin': True, 'service_catalog': [{u'endpoints': [{u'region': u'CloudOne', u'publicURL': u'http://10.0.2.15:9696/'}], u'type': u'network', u'name': u'neutron'}, {u'endpoints': [{u'region': u'CloudOne', u'publicURL': u'http://10.0.2.15/image'}], u'type': u'image', u'name': u'glance'}, {u'endpoints': [{u'region': u'CloudOne', u'publicURL': u'http://10.0.2.15/placement'}], u'type': u'placement', u'name': u'placement'}], 'service_roles': [], 'show_deleted': False, 'roles': [u'reader', u'member', u'admin'], 'service_user_domain_id': None, '_read_deleted': 'no', 'request_id': 'req-19776dc8-8076-4f9d-ba0e-b2eb6fe9f429', 'mq_connection': None, '_project_id': u'5959c6cd1c3c4561bca87f29eada00fb', '_project_domain_id': u'default'}
+#+end_example
+
+The fuck appears in
+- ~/nova/image/glance.py~ def ~_session_and_auth~
+- ~_auth~:
+  + ~/nova/service_auth.py~, def ~get_auth_plugin~
+  + return ~context.get_auth_plugin()~
+- ~_sess~:
+  + Load with ~[keystone_authtoken]~ info of the nova.conf
+
+*** Under HA
+#+begin_example
+{'service': None, 'reauthenticate': False, '_auth': <keystoneauth1.identity.v3.password.Password object at 0x7fce347b4e10>, '_discovery_cache': {}, '_lock': <thread.lock object at 0x7fce3455d130>, 'auth_ref': None, '_session': <keystoneauth1.session.Session object at 0x7fce347b4f10>, 'auth_url': None, 'user': <keystoneauth1.access.access.AccessInfoV3 object at 0x7fce347cbb90>}
+ipdb> vars(_auth._auth)
+{'project_name': 'admin', 'unscoped': False, 'reauthenticate': True, '_discovery_cache': {}, '_lock': <thread.lock object at 0x7fce34c8bc10>, 'auth_ref': None, 'domain_name': None, 'system_scope': None, 'auth_methods': [<keystoneauth1.identity.v3.password.PasswordMethod object at 0x7fce347b4e90>], 'auth_url': 'http://192.168.142.245:8888/identity/v3', 'project_domain_name': None, 'include_catalog': True, 'project_id': None, 'domain_id': None, 'trust_id': None, 'project_domain_id': 'default'}
+#+end_example
+
+#+begin_example
+ipdb> vars(context)
+{'service_user_domain_name': None, 'service_user_id': None, 'auth_token': 'gAAAAABcaK3g6MOYxR8KrPn0VPMr15bfI6q7gT5goFMjwWiHhlLbybuKgkRphrBGyTxin7mhcmVTM4XRzclF9PZ5_p1p9-qxWMGTtR-eVo9HUBYVo1RWDHhVPPvvUA-EWJVH5MVk8edI1BvQvyfBnuRQ9zC34KBtHXg_WcBVr4RwmAivkASxTus', '_user_domain_id': u'default', 'resource_uuid': None, '_enginefacade_context': <oslo_db.sqlalchemy.enginefacade._TransactionContextTLocal object at 0x7fd2d7512f58>, 'service_project_domain_name': None, 'read_only': False, 'system_scope': None, 'service_token': None, 'service_project_name': None, 'domain_name': None, 'is_admin_project': True, 'service_user_name': None, 'user_auth_plugin': <keystonemiddleware.auth_token._user_plugin.UserAuthPlugin object at 0x7fd2dacc7450>, 'user_name': u'admin', 'user_domain_name': u'Default', '_user_id': u'840ab0ce62b145e59ac1491af0226a09', 'project_domain_name': u'Default', 'db_connection': None, 'project_name': u'admin', 'global_request_id': None, 'service_project_id': None, 'timestamp': datetime.datetime(2019, 2, 17, 0, 42, 8, 997028), 'service_project_domain_id': None, 'remote_address': '10.0.2.15', 'quota_class': None, '_domain_id': None, 'is_admin': True, 'service_catalog': [{u'endpoints': [{u'region': u'CloudOne', u'publicURL': u'http://10.0.2.15:9696/'}], u'type': u'network', u'name': u'neutron'}, {u'endpoints': [{u'region': u'CloudOne', u'publicURL': u'http://10.0.2.15/image'}], u'type': u'image', u'name': u'glance'}, {u'endpoints': [{u'region': u'CloudOne', u'publicURL': u'http://10.0.2.15/placement'}], u'type': u'placement', u'name': u'placement'}], 'service_roles': [], 'show_deleted': False, 'roles': [u'reader', u'member', u'admin'], 'service_user_domain_id': None, '_read_deleted': 'no', 'request_id': 'req-705f9fd1-6342-48f3-bded-727eb82f9188', 'mq_connection': None, '_project_id': u'5959c6cd1c3c4561bca87f29eada00fb', '_project_domain_id': u'default'}
+
+{'service_user_domain_name': None, 'service_user_id': None, 'auth_token': 'gAAAAABcaKziqY3yUekTI7kaxkt3qjBgIrN9esNmpjnfgnyeNoifT4ZQQOxxTyLvoLo7nr6_G_TgEEJGIsCNlB0uJe23UgXRo0shXVvjrKVsQf0M27fc1UlKX-8xycUMw3TiOwKUbb6You6hBLA9zbNqPp32UjsDBxqLX4dP94Mj7HxA5EVxnfA!SCOPE!{"placement": "CloudTwo", "network": "CloudTwo", "image": "CloudTwo", "compute": "CloudTwo", "identity": "CloudTwo"}', '_user_domain_id': u'default', 'resource_uuid': None, '_enginefacade_context': <oslo_db.sqlalchemy.enginefacade._TransactionContextTLocal object at 0x7f321c7b7870>, 'service_project_domain_name': None, 'read_only': False, 'system_scope': None, 'service_token': None, 'service_project_name': None, 'domain_name': None, 'is_admin_project': True, 'service_user_name': None, 'user_auth_plugin': <keystonemiddleware.auth_token._user_plugin.UserAuthPlugin object at 0x7f321ed46710>, 'user_name': u'admin', 'user_domain_name': u'Default', '_user_id': u'79e8979976f144b7b5f9072437eea480', 'project_domain_name': u'Default', 'db_connection': None, 'project_name': u'admin', 'global_request_id': None, 'service_project_id': None, 'timestamp': datetime.datetime(2019, 2, 17, 0, 37, 56, 582482), 'service_project_domain_id': None, 'remote_address': '10.0.2.15', 'quota_class': None, '_domain_id': None, 'is_admin': True, 'service_catalog': [], 'service_roles': [], 'show_deleted': False, 'roles': [u'reader', u'member', u'admin'], 'service_user_domain_id': None, '_read_deleted': 'no', 'request_id': 'req-0ab2e450-e88c-45f1-ab3f-39fe10d01132', 'mq_connection': None, '_project_id': u'09f2ca7f181b4f78a131bb030f84475c', '_project_domain_id': u'default'}
+
+#+end_example
+
+** Request Context
+- l. 107 from /opt/stack/nova/nova/context.py
+  : sed -i '128i\        import ipdb; ipdb.set_trace()' /opt/stack/nova/nova/context.py
+- l. 72 from /opt/stack/nova/nova/api/auth.py
+  : sed -i '77i\        import ipdb; ipdb.set_trace()' /opt/stack/nova/nova/api/auth.py
+** Nova network
+: sed -i '413i\        import ipdb; ipdb.set_trace()' /opt/stack/nova/nova/compute/api.py
+: (ipdb)> net = network.neutronv2.api.get_client(context)
+
+- nova.service_auth.get_aut_plugin(context)
+
+* Keystonemiddleware with conf
+I don't have to make a new ~auth~, ~sess~, ... Actually I can simply
+do the following.
+
+#+begin_src python
+kls._auth = copy.copy(kls._auth)
+kls._auth.auth_url = cloud_auth_url
+kls._auth._plugin.auth_url = cloud_auth_url + '/v3'
+kls._session = Session(auth=auth)
+#+end_src
+
+* Update Catalog from Keystonemiddleware
+Instead of relying on HAProxy, another solution that fits well with
+OpenStack, is modifying the service catalog returned by a scoped
+token.
+
+All rest clients in the OpenStack code use that catalog to determine
+the address of the service they wanna contact. By giving a catalog
+that is in conformance with the scope, OpenStack should do the
+collaboration by itself.
+
+Here is how we can update the service catalog when receiving a request
+on keystonemiddleware. In ~keystonemiddleware/openstackoid.py~ do
+
+#+begin_src python
+import json
+
+# List of all services of OpenStack Clouds
+SERVICES = []
+with open("/etc/haproxy/services.json") as s:
+    SERVICES = json.load(s).get('services')
+
+# -- 🐒 Monky Patching 🐒
+#
+# Monkeypatch _request.set_service_catalog_headers to align catalog cloud
+# with the scope. We only have to change the cloud name and not the URL or
+# id since redirection to the URL of the correct cloud is managed by
+# HAProxy.
+from keystonemiddleware.auth_token import _request
+
+set_service_catalog_headers = _request._AuthTokenRequest.set_service_catalog_headers
+def mkeypatch_set_service_catalog_headers(request, auth_ref):
+    scope = json.loads(request.headers.get('X-Scope', "{}"))
+    catalog = auth_ref.service_catalog.catalog
+    cloud_name = request.headers.get('X-Identity-Region')
+
+    for service in catalog:
+        scoped_cloud_name = scope.get(service['type'], cloud_name)
+        service['endpoints'][0]['region'] = scoped_cloud_name
+        service['endpoints'][0]['region_id'] = scoped_cloud_name
+
+    return set_service_catalog_headers(request, auth_ref)
+_request._AuthTokenRequest.set_service_catalog_headers = mkeypatch_set_service_catalog_headers
+#+end_src
+
+* TODO Use Keystone in CloudOne and start a VM in CloudOne
+The following command runs an ~openstack server create~ that uses
+Identity of CloudOne and does all the job on CloudTwo. It is really
+important to do it as a member and not admin since admin can use
+networks of all projects.
+
+#+begin_src bash
+OS_SCOPE=' { "identity":  "CloudOne"'`
+         `', "placement": "CloudOne"'`
+         `', "image":     "CloudOne"'`
+         `', "compute":   "CloudOne"'`
+         `', "network":   "CloudTwo"'`
+         `'}'
+
+openstack server create my-vm \
+          --os-scope "$OS_SCOPE" \
+          --flavor m1.tiny \
+          --image cirros-0.3.5-x86_64-disk \
+          --network private \
+          --wait
+#+end_src
+
+At the end, the VM boot failed with
+
+#+begin_example
+Unexpected API Error. Please report this at http://bugs.launchpad.net/nova/ and attach the Nova API log if possible.
+<class 'neutronclient.common.exceptions.NetworkNotFoundClient'> (HTTP 500) (Request-ID: req-1494adce-73dc-42bf-a021-d4a4ebb36a13)
+#+end_example
+
+A reason could be the ~project-id~. A ~project-id~ binds every
+OpenStack resource in such a manner that Alice can only access private
+resources of her ~project-id~. And here, Alice comes with
+~project-id@CloudOne~ from /Identity@CloudOne/ and asks
+/Compute@CloudTwo/ to get a network on /Compute@CloudTwo/.
+
+
+# A ~virsh console~ tells me the VM comes without NIC.
+#
+# #+begin_src bash
+# stack@CloudTwo$ virsh console \
+#   $(openstack server show my-vm \
+#               --os-scope "$OS_SCOPE" \
+#               --c "OS-EXT-SRV-ATTR:instance_name" \
+#               -f value)
+# $ ip a
+# 1: lo: <LOOPBACK,UP,LOWER_UP> mtu 16436 qdisc noqueue
+#     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+#     inet 127.0.0.1/8 scope host lo
+#     inet6 ::1/128 scope host
+#        valid_lft forever preferred_lft forever
+# #+end_src
+
+Now, what happens if I first create a Network with the correct
+~project-id~?
+
+#+begin_src bash
+openstack network create private-with-pid@CloudOne \
+          --os-scope "$OS_SCOPE" \
+          --provider-network-type vxlan
+
+openstack subnet create private-subnet-with-pid@CloudOne \
+          --os-scope "$OS_SCOPE" \
+          --network private \
+          --subnet-range 10.0.0.0/24 --gateway 10.0.0.1 \
+          --ip-version 4
+#+end_src
+
+And then redo the starts command, but with this network?
+
+#+begin_src bash
+openstack server create my-vm \
+          --os-scope "$OS_SCOPE" \
+          --flavor m1.tiny \
+          --netwok private-with-pid@CloudOne \
+          --image cirros-0.3.5-x86_64-disk \
+          --wait
+#+end_src
+
+* TODO Placement API
+Booting a VM by using the Placement API of another Cloud works and
+should not.
+
+#+begin_src bash
+openstack server create my-vm \
+          --os-scope '{"compute": "CloudOne", "network": "CloudOne", "placement": "CloudTwo"}' \
+          --flavor m1.tiny \
+          --image cirros-0.3.5-x86_64-disk \
+          --network private \
+          --wait
+#+end_src

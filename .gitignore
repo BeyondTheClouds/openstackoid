@@ -1,0 +1,5 @@
+.mypy_cache
+.python-version
+.vagrant
+__pycache__
+playbooks/*.retry
